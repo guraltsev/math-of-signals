@@ -4,5 +4,8 @@
       "content"
     ],
     "output_dir": "dist"
+  },
+  "FederatedExtensionAddon": {
+    "extra_labextensions_path": ["./extensions"]
   }
 }

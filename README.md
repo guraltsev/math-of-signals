@@ -66,8 +66,7 @@ For a user or organization site repository named `<owner>.github.io`, remove `/<
 The deployed site is configured so each notebook opens as a standalone activity:
 
 - direct `?path=...&mode=single-document` URLs instead of workspace URLs
-- launcher disabled at runtime
-- file browser left enabled in the sidebar
+- file browser and launcher disabled at runtime
 - in-memory contents and settings storage so reloads start fresh
 - service worker left enabled for stable filesystem imports
 - tagged notebook setup cells run automatically via the custom autorun frontend extension

@@ -36,9 +36,23 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: autorun-extension/package.json
+
+      - name: Build the autorun extension
+        run: |
+          cd autorun-extension
+          npm install
+          npm run build
+          python -m jupyter labextension build .
+
       - name: Build the JupyterLite site
         run: |
-          jupyter lite build --workspaces content/workspaces
+          jupyter lite build
 
       - name: Build the bundled Pyodide distribution
         run: |

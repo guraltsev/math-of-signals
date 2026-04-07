@@ -1,0 +1,27 @@
+{
+  "name": "@math-of-signals/autorun",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Minimal JupyterLab autorun extension for tagged notebook cells",
+  "license": "BSD-3-Clause",
+  "files": [
+    "lib/**/*"
+  ],
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf lib ../extensions/@math-of-signals/autorun"
+  },
+  "dependencies": {
+    "@jupyterlab/application": "^4.5.0",
+    "@jupyterlab/notebook": "^4.5.0"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3"
+  },
+  "jupyterlab": {
+    "extension": true,
+    "outputDir": "../extensions/@math-of-signals/autorun"
+  }
+}

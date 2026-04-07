@@ -28,7 +28,7 @@ Extra packages can still be installed from inside a notebook with `%pip install 
 
 ## Repo layout
 
-- `content/` - notebooks, helpers, and JupyterLite workspaces
+- `content/` - notebooks, helpers, and other files bundled into the JupyterLite site
 - `jupyter_lite_config.json` - build-time JupyterLite settings
 - `jupyter-lite.json` - runtime JupyterLite settings, including the default Pyodide package preload list
 - `pyodide-extra-requirements.txt` - extra pure-Python wheels that get merged into the deployed Pyodide lockfile
@@ -54,12 +54,22 @@ Once deployed, the JupyterLab launcher and notebooks will use the bundled Pyodid
 
 After deployment, these URLs open the four notebooks in single-document mode:
 
-- `https://<owner>.github.io/<repo>/lab/index.html?workspace=Fourier_01&mode=single-document`
-- `https://<owner>.github.io/<repo>/lab/index.html?workspace=Fourier_02&mode=single-document`
-- `https://<owner>.github.io/<repo>/lab/index.html?workspace=Fourier_03&mode=single-document`
-- `https://<owner>.github.io/<repo>/lab/index.html?workspace=Fourier_04&mode=single-document`
+- `https://<owner>.github.io/<repo>/lab/index.html?path=Fourier_01.ipynb&mode=single-document`
+- `https://<owner>.github.io/<repo>/lab/index.html?path=Fourier_02.ipynb&mode=single-document`
+- `https://<owner>.github.io/<repo>/lab/index.html?path=Fourier_03.ipynb&mode=single-document`
+- `https://<owner>.github.io/<repo>/lab/index.html?path=Fourier_04.ipynb&mode=single-document`
 
 For a user or organization site repository named `<owner>.github.io`, remove `/<repo>` from those URLs.
+
+## Activity behavior
+
+The deployed site is configured so each notebook opens as a standalone activity:
+
+- direct `?path=...&mode=single-document` URLs instead of workspace URLs
+- file browser and launcher disabled at runtime
+- in-memory contents and settings storage so reloads start fresh
+- service worker left enabled for stable filesystem imports
+- tagged notebook setup cells run automatically via the custom autorun frontend extension
 
 ## Change the default package set
 

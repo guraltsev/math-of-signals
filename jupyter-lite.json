@@ -4,7 +4,9 @@
     "disabledExtensions": [
       "@jupyterlab/drawio-extension",
       "jupyterlab-kernel-spy",
-      "jupyterlab-tour"
+      "jupyterlab-tour",
+      "@jupyterlab/filebrowser-extension:browser",
+      "@jupyterlab/launcher-extension:plugin"
     ],
     "litePluginSettings": {
       "@jupyterlite/pyodide-kernel-extension:kernel": {
@@ -22,6 +24,12 @@
           ]
         }
       }
-    }
+    },
+    "contentsStorageDrivers": [
+      "memoryStorageDriver"
+    ],
+    "settingsStorageDrivers": [
+      "memoryStorageDriver"
+    ]
   }
 }

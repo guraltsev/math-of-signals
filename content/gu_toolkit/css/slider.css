@@ -1,0 +1,111 @@
+/* Slider-specific sizing and compact limit-field styling. */
+
+.smart-slider-root,
+.smart-slider-top-row,
+.smart-slider-track,
+.smart-slider-label,
+.smart-slider-value-input {
+  box-sizing: border-box !important;
+  min-width: 0 !important;
+}
+
+.smart-slider-root,
+.smart-slider-top-row {
+  width: 100% !important;
+}
+
+.smart-slider-top-row {
+  align-items: center !important;
+  column-gap: 2px !important;
+}
+
+.smart-slider-label {
+  flex: 0 0 auto !important;
+  width: auto !important;
+  margin-right: 0 !important;
+  white-space: nowrap !important;
+}
+
+.smart-slider-track {
+  flex: 1 1 auto !important;
+  width: auto !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+}
+
+.smart-slider-value-input {
+  width: 64px !important;
+}
+
+.smart-slider-value-input,
+.smart-slider-value-input * {
+  min-width: 0 !important;
+  margin: 0 !important;
+}
+
+.smart-slider-value-input :is(input, textarea) {
+  min-width: 0 !important;
+}
+
+.smart-slider-limit,
+.smart-slider-limit * {
+  min-height: 0 !important;
+}
+
+.smart-slider-limit {
+  width: 38px !important;
+  flex: 0 0 38px !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.smart-slider-limit :is(input, textarea) {
+  font-size: 10px !important;
+  line-height: 1.1 !important;
+  height: 16px !important;
+  min-height: 0 !important;
+  padding: 0 2px !important;
+  margin: 0 !important;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  box-shadow: none !important;
+  border-radius: 3px !important;
+  color: var(--jp-ui-font-color2, #666) !important;
+  text-align: center !important;
+  box-sizing: border-box !important;
+}
+
+.smart-slider-limit :is(input, textarea):hover {
+  border-bottom-color: rgba(0, 0, 0, 0.20) !important;
+}
+
+.smart-slider-limit :is(input, textarea):focus {
+  outline: none !important;
+  border-color: rgba(0, 0, 0, 0.28) !important;
+  background: rgba(0, 0, 0, 0.04) !important;
+}
+
+.smart-slider-settings-subject,
+.smart-slider-settings-subject * {
+  min-width: 0 !important;
+}
+
+.smart-slider-settings-subject {
+  width: auto !important;
+  margin: 0 !important;
+  color: var(--gu-color-text-muted, #475569) !important;
+  font-size: 17px !important;
+  line-height: 1.15 !important;
+  font-weight: var(--gu-font-weight-medium, 500) !important;
+  white-space: nowrap !important;
+}
+
+.smart-slider-settings-subject :is(.MathJax, mjx-container) {
+  margin: 0 !important;
+}
+
+.smart-slider-settings-live-field {
+  width: auto !important;
+  max-width: 100% !important;
+}

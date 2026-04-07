@@ -1,0 +1,68 @@
+/* Shared design tokens for toolkit widgets.
+   Edit this file to tune compactness, emphasis, and icon sizing globally. */
+
+:root,
+.gu-theme-root {
+  --gu-space-1: 4px;
+  --gu-space-2: 8px;
+  --gu-space-3: 12px;
+  --gu-space-4: 16px;
+  --gu-space-5: 20px;
+
+  --gu-radius-sm: 8px;
+  --gu-radius-md: 12px;
+  --gu-radius-lg: 16px;
+
+  --gu-control-height-md: 36px;
+  --gu-control-height-lg: 40px;
+  --gu-control-padding-x: 12px;
+  --gu-control-padding-y: 8px;
+  --gu-control-border-width: 1px;
+  --gu-listbox-min-height: 96px;
+
+  --gu-panel-label-size: 13px;
+  --gu-panel-label-weight: 600;
+  --gu-panel-label-spacing: 6px;
+  --gu-section-padding-minimal: 10px 12px;
+  --gu-section-gap-minimal: 8px;
+
+  --gu-tab-height: 32px;
+  --gu-tab-padding-x: 12px;
+  --gu-tab-radius: 10px;
+  --gu-tab-bar-padding: 2px;
+
+  --gu-icon-hit-area: 28px;
+  --gu-icon-glyph-size: 17px;
+  --gu-icon-close-glyph-size: 15px;
+  --gu-legend-marker-diameter: 16px;
+
+  --gu-checkbox-size: 16px;
+  --gu-checkbox-accent: var(--jp-brand-color1, #0b76d1);
+
+  --gu-font-size-caption: 12px;
+  --gu-font-size-body: 14px;
+  --gu-font-size-title: 24px;
+  --gu-font-weight-medium: 500;
+  --gu-font-weight-semibold: 600;
+  --gu-font-weight-bold: 700;
+
+  --gu-color-text: #0f172a;
+  --gu-color-text-muted: #475569;
+  --gu-color-text-subtle: #64748b;
+  --gu-color-border-subtle: rgba(15, 23, 42, 0.10);
+  --gu-color-border-strong: rgba(15, 23, 42, 0.16);
+  --gu-color-surface: #ffffff;
+  --gu-color-surface-subtle: rgba(15, 23, 42, 0.03);
+  --gu-color-surface-muted: rgba(15, 23, 42, 0.05);
+  --gu-color-brand: var(--jp-brand-color1, #0b76d1);
+  --gu-color-brand-strong: #095fa7;
+  --gu-color-danger: #b42318;
+  --gu-color-danger-soft: rgba(180, 35, 24, 0.14);
+  --gu-color-danger-bg: rgba(180, 35, 24, 0.06);
+
+  --gu-focus-ring: 0 0 0 3px rgba(11, 118, 209, 0.18);
+
+  --gu-dialog-width-sm: 440px;
+  --gu-dialog-width-md: 560px;
+  --gu-dialog-width-lg: 720px;
+}

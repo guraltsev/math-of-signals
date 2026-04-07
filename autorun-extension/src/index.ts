@@ -1,11 +1,22 @@
 import { JupyterFrontEnd, JupyterFrontEndPlugin } from '@jupyterlab/application';
+import {
+  ISessionContextDialogs as ISessionContextDialogsToken,
+  SessionContextDialogs
+} from '@jupyterlab/apputils';
+import type { ISessionContextDialogs } from '@jupyterlab/apputils';
 import { NotebookActions, NotebookPanel, INotebookTracker } from '@jupyterlab/notebook';
 
 const plugin: JupyterFrontEndPlugin<void> = {
   id: '@math-of-signals/autorun:plugin',
   autoStart: true,
   requires: [INotebookTracker],
-  activate: (app: JupyterFrontEnd, tracker: INotebookTracker) => {
+  optional: [ISessionContextDialogsToken],
+  activate: (
+    _app: JupyterFrontEnd,
+    tracker: INotebookTracker,
+    sessionDialogsToken: ISessionContextDialogs | null
+  ) => {
+    const sessionDialogs = sessionDialogsToken ?? new SessionContextDialogs();
     const running = new WeakMap<NotebookPanel, Promise<void>>();
     const completed = new WeakSet<NotebookPanel>();
 
@@ -24,6 +35,20 @@ const plugin: JupyterFrontEndPlugin<void> = {
       return indices;
     };
 
+    const ensureKernelReady = async (panel: NotebookPanel): Promise<boolean> => {
+      const { sessionContext } = panel;
+
+      if (!sessionContext.isReady) {
+        const needsSelection = await sessionContext.initialize();
+        if (needsSelection) {
+          await sessionDialogs.selectKernel(sessionContext);
+        }
+      }
+
+      await sessionContext.ready;
+      return !!sessionContext.session?.kernel;
+    };
+
     const runAutorunCells = async (panel: NotebookPanel): Promise<void> => {
       if (completed.has(panel)) {
         return;
@@ -36,14 +61,9 @@ const plugin: JupyterFrontEndPlugin<void> = {
       const task = (async () => {
         await panel.context.ready;
         await panel.revealed;
-        await panel.sessionContext.ready;
 
-        if (!panel.sessionContext.session?.kernel) {
-          await panel.sessionContext.initialize();
-          await panel.sessionContext.ready;
-        }
-
-        if (!panel.sessionContext.session?.kernel) {
+        const hasKernel = await ensureKernelReady(panel);
+        if (!hasKernel) {
           return;
         }
 
@@ -60,7 +80,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
         try {
           for (const index of indices) {
             notebook.activeCellIndex = index;
-            await NotebookActions.run(notebook, panel.sessionContext, app.commands);
+            await NotebookActions.run(notebook, panel.sessionContext, sessionDialogs);
           }
         } finally {
           notebook.activeCellIndex = previousActiveCellIndex;

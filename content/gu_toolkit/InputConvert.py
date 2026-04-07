@@ -7,41 +7,64 @@ APIs that accept either Python numeric values or symbolic string expressions.
 # === SECTION: InputConvert [id: InputConvert]===
 from __future__ import annotations
 
-from typing import Any, Type, TypeVar
+from typing import Any, TypeVar
+
 import sympy as sp
 
 T = TypeVar("T", int, float, complex)
 
 
-def InputConvert(obj: Any, dest_type: Type[T] = float, truncate: bool = True) -> T:
-    """
-    Convert `obj` to `dest_type`.
-
-    Supported destination types:
-    - float (strictly real)
-    - int
-    - complex
-
-    Rules:
-    - If `obj` is a number: cast via dest_type(obj).
-    - If `obj` is a string:
-        1) try float(s) or complex(s)
-        2) else parse as a SymPy expression, then evaluate.
-
-    Truncation Rules (`truncate`):
-    - When converting Complex -> Real (float/int):
-        - If `truncate=True`: Discard imaginary part (projection to real).
-        - If `truncate=False`: Raise ValueError if imaginary part != 0.
-    - When converting Float -> Int:
-        - If `truncate=True`: Truncate decimal part (e.g., 3.9 -> 3).
-        - If `truncate=False`: Require exact integer (e.g., 3.0 -> 3, 3.1 -> Error).
-
-    Raises
-    ------
-    NotImplementedError
-        If dest_type is unsupported.
-    ValueError
-        If conversion fails or violates truncation rules.
+def InputConvert(obj: Any, dest_type: type[T] = float, truncate: bool = True) -> T:
+    """Convert `obj` to `dest_type`.
+    
+    Full API
+    --------
+    ``InputConvert(obj: Any, dest_type: type[T]=float, truncate: bool=True) -> T``
+    
+    Parameters
+    ----------
+    obj : Any
+        Value for ``obj`` in this API. Required.
+    
+    dest_type : type[T], optional
+        Value for ``dest_type`` in this API. Defaults to ``float``.
+    
+    truncate : bool, optional
+        Value for ``truncate`` in this API. Defaults to ``True``.
+    
+    Returns
+    -------
+    T
+        Result produced by this API.
+    
+    Optional arguments
+    ------------------
+    - ``dest_type=float``: Value for ``dest_type`` in this API.
+    - ``truncate=True``: Value for ``truncate`` in this API.
+    
+    Architecture note
+    -----------------
+    This callable lives in ``gu_toolkit.InputConvert``. These helpers bridge symbolic authoring with numeric execution so notebook expressions can stay concise without giving up compiled evaluation.
+    
+    Examples
+    --------
+    Basic use::
+    
+        from gu_toolkit.InputConvert import InputConvert
+        result = InputConvert(...)
+    
+    Discovery-oriented use::
+    
+        help(InputConvert)
+        # then follow the guide/test links listed below
+    
+    Learn more / explore
+    --------------------
+    - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the package.
+    - Example notebook: ``examples/Toolkit_overview.ipynb``.
+    - Regression/spec tests: ``tests/test_numeric_callable_api.py``.
+    - Runtime discovery tip: compare symbolic authoring helpers with the numeric-callable tests/examples to see how symbolic inputs become numeric callables.
+    - In a notebook or REPL, run ``help(InputConvert)`` and inspect sibling APIs in the same module.
     """
     if dest_type not in (float, int, complex):
         raise NotImplementedError(
@@ -59,13 +82,13 @@ def InputConvert(obj: Any, dest_type: Type[T] = float, truncate: bool = True) ->
 
         # 2. Handle Real Destination (float or int)
         # Check for imaginary part presence
-        if x.imag != 0:
+        if x.imag != 0:  # noqa: SIM102
             if not truncate:
                 raise ValueError(
                     f"Could not convert non-real {x!r} to {dest_type.__name__}: imaginary part is non-zero."
                 )
             # If truncate=True, we implicitly discard the imaginary part
-        
+
         r_val = x.real
 
         # 3. If target is float, we are done
@@ -74,21 +97,24 @@ def InputConvert(obj: Any, dest_type: Type[T] = float, truncate: bool = True) ->
 
         # 4. Handle Int Destination
         # We are now dealing with a real float 'r_val'
-        if not r_val.is_integer():
-            if not truncate:
-                raise ValueError(
-                    f"Could not convert {x!r} to int: value is not an exact integer."
-                )
+        if not r_val.is_integer() and not truncate:
+            raise ValueError(
+                f"Could not convert {x!r} to int: value is not an exact integer."
+            )
             # If truncate=True, int() truncates towards zero
-        
+
         return int(r_val)  # type: ignore[return-value]
 
     # Fast path: numeric types (exclude bool)
     if isinstance(obj, (int, float, complex)) and not isinstance(obj, bool):
         try:
             return _coerce_numeric_value(complex(obj))
+        except ValueError:
+            raise
         except Exception as e:
-            raise ValueError(f"Could not convert {obj!r} to {dest_type.__name__}.") from e
+            raise ValueError(
+                f"Could not convert {obj!r} to {dest_type.__name__}."
+            ) from e
 
     # String path
     if isinstance(obj, str):
@@ -102,7 +128,7 @@ def InputConvert(obj: Any, dest_type: Type[T] = float, truncate: bool = True) ->
             return _coerce_numeric_value(complex(float(s)))
         except ValueError:
             pass
-            
+
         # Try complex string parsing (e.g. "1+2j")
         try:
             return _coerce_numeric_value(complex(s))
@@ -123,7 +149,10 @@ def InputConvert(obj: Any, dest_type: Type[T] = float, truncate: bool = True) ->
     # Fallback: try converting to complex generically
     try:
         return _coerce_numeric_value(complex(obj))
+    except ValueError:
+        raise
     except Exception as e:
         raise ValueError(f"Could not convert {obj!r} to {dest_type.__name__}.") from e
+
 
 # === END OF SECTION: InputConvert [id: InputConvert]===

@@ -1,0 +1,96 @@
+/* Figure-level layout and output containment. */
+
+.gu-figure-root,
+.gu-figure-content,
+.gu-figure-left-panel,
+.gu-figure-view-stage,
+.gu-figure-view-page,
+.gu-figure-sidebar,
+.gu-figure-output-widget {
+  box-sizing: border-box !important;
+  min-width: 0 !important;
+}
+
+.gu-figure-view-stage,
+.gu-figure-view-page {
+  overflow: hidden !important;
+}
+
+.gu-figure-sidebar {
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+}
+
+.gu-figure-panel-body,
+.gu-figure-panel-body > *,
+.gu-figure-output-body,
+.gu-figure-output-body > *,
+.gu-figure-info-output,
+.gu-figure-info-output > *,
+.gu-figure-output-widget,
+.gu-figure-output-widget > * {
+  box-sizing: border-box !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+}
+
+.gu-figure-panel-body,
+.gu-figure-info-output,
+.gu-figure-output-widget {
+  overflow-x: hidden !important;
+  overflow-y: visible !important;
+}
+
+.gu-figure-output-body {
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+}
+
+.gu-figure-info-output :is(.jupyter-widgets-output-area, .output_scroll, .jp-OutputArea, .jp-OutputArea-output, .jp-OutputArea-child),
+.gu-figure-output-body :is(.jupyter-widgets-output-area, .output_scroll, .jp-OutputArea, .jp-OutputArea-output, .jp-OutputArea-child),
+.gu-figure-output-widget :is(.jupyter-widgets-output-area, .output_scroll, .jp-OutputArea, .jp-OutputArea-output, .jp-OutputArea-child) {
+  box-sizing: border-box !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  overflow-x: hidden !important;
+}
+
+.gu-figure-panel-body pre,
+.gu-figure-info-output pre,
+.gu-figure-output-body pre,
+.gu-figure-output-widget pre {
+  white-space: pre-wrap !important;
+  overflow-wrap: anywhere !important;
+}
+
+
+.gu-figure-titlebar,
+.gu-figure-titlebar > *,
+.gu-figure-title,
+.gu-figure-title > * {
+  box-sizing: border-box !important;
+  min-width: 0 !important;
+}
+
+.gu-figure-titlebar {
+  width: 100% !important;
+  align-items: center !important;
+  gap: 12px !important;
+}
+
+.gu-figure-title {
+  flex: 1 1 auto !important;
+  margin: 0 !important;
+  color: var(--gu-color-text) !important;
+  font-size: calc(var(--gu-font-size-title) + 2px) !important;
+  line-height: 1.2 !important;
+  font-weight: var(--gu-font-weight-semibold) !important;
+}
+
+.gu-figure-title :is(p, div, span) {
+  margin: 0 !important;
+  color: inherit !important;
+  font: inherit !important;
+  line-height: inherit !important;
+}

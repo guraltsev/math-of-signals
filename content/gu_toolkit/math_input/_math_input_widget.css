@@ -1,0 +1,15 @@
+.gu-math-input-root {
+  display: block;
+  width: 100%;
+}
+
+.gu-math-input-root math-field:not(:defined) {
+  display: none;
+}
+
+.gu-math-input-root math-field {
+  box-sizing: border-box;
+  display: block;
+  min-height: 2.5rem;
+  width: 100%;
+}

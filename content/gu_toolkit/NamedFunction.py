@@ -97,15 +97,27 @@ from __future__ import annotations
 
 import inspect
 import textwrap
-from typing import Callable, Optional, Protocol, Tuple, Type, Union, cast
+from collections.abc import Callable
+from typing import Protocol, cast
 
 import sympy as sp
 
+from .identifiers import (
+    function_head_to_latex,
+    function_latex_method,
+    render_latex,
+    symbol,
+    validate_identifier,
+)
 
 __all__ = [
     # Public API
     "NamedFunction",
+    "get_named_function_registry",
 ]
+
+
+_NAMED_FUNCTION_REGISTRY: dict[str, type[sp.Function]] = {}
 
 
 # === SECTION: Types & protocols [id: types]===
@@ -114,7 +126,7 @@ __all__ = [
 # === END SECTION: Types & protocols ===
 
 
-_SymbolicReturn = Union[sp.Basic, int, float, complex, str, None]
+_SymbolicReturn = sp.Basic | int | float | complex | str | None
 _SymbolicCallable = Callable[..., _SymbolicReturn]
 
 
@@ -125,11 +137,97 @@ class _NamedFunctionSpec(Protocol):
     """
 
     def symbolic(self, *args: sp.Basic) -> _SymbolicReturn:
-        """Return the symbolic expansion/definition for the function call."""
+        """Return the symbolic expansion/definition for the function call.
+        
+        Full API
+        --------
+        ``obj.symbolic(*args: sp.Basic) -> _SymbolicReturn``
+        
+        Parameters
+        ----------
+        *args : sp.Basic, optional
+            Additional positional arguments forwarded by this API. Optional variadic input.
+        
+        Returns
+        -------
+        _SymbolicReturn
+            Result produced by this API.
+        
+        Optional arguments
+        ------------------
+        - ``*args``: Additional positional arguments are passed through when this API supports variadic input.
+        
+        Architecture note
+        -----------------
+        This member belongs to ``_NamedFunctionSpec``. These helpers bridge symbolic authoring with numeric execution so notebook expressions can stay concise without giving up compiled evaluation. Use it through the owning object rather than bypassing the surrounding figure/runtime machinery.
+        
+        Examples
+        --------
+        Basic use::
+        
+            obj = _NamedFunctionSpec(...)
+            result = obj.symbolic(...)
+        
+        Discovery-oriented use::
+        
+            help(_NamedFunctionSpec)
+            # then follow the guide/test links listed below
+        
+        Learn more / explore
+        --------------------
+        - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the package.
+        - Example notebook: ``examples/Toolkit_overview.ipynb``.
+        - Regression/spec tests: ``tests/test_numeric_callable_api.py``.
+        - Runtime discovery tip: compare symbolic authoring helpers with the numeric-callable tests/examples to see how symbolic inputs become numeric callables.
+        - In a notebook or REPL, run ``help(_NamedFunctionSpec)`` and ``dir(_NamedFunctionSpec)`` to inspect adjacent members.
+        """
         ...
 
     def numeric(self, *args: object) -> object:
-        """Return a numeric implementation used by ``numpify`` bindings."""
+        """Return a numeric implementation used by ``numpify`` bindings.
+        
+        Full API
+        --------
+        ``obj.numeric(*args: object) -> object``
+        
+        Parameters
+        ----------
+        *args : object, optional
+            Additional positional arguments forwarded by this API. Optional variadic input.
+        
+        Returns
+        -------
+        object
+            Result produced by this API.
+        
+        Optional arguments
+        ------------------
+        - ``*args``: Additional positional arguments are passed through when this API supports variadic input.
+        
+        Architecture note
+        -----------------
+        This member belongs to ``_NamedFunctionSpec``. These helpers bridge symbolic authoring with numeric execution so notebook expressions can stay concise without giving up compiled evaluation. Use it through the owning object rather than bypassing the surrounding figure/runtime machinery.
+        
+        Examples
+        --------
+        Basic use::
+        
+            obj = _NamedFunctionSpec(...)
+            result = obj.numeric(...)
+        
+        Discovery-oriented use::
+        
+            help(_NamedFunctionSpec)
+            # then follow the guide/test links listed below
+        
+        Learn more / explore
+        --------------------
+        - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the package.
+        - Example notebook: ``examples/Toolkit_overview.ipynb``.
+        - Regression/spec tests: ``tests/test_numeric_callable_api.py``.
+        - Runtime discovery tip: compare symbolic authoring helpers with the numeric-callable tests/examples to see how symbolic inputs become numeric callables.
+        - In a notebook or REPL, run ``help(_NamedFunctionSpec)`` and ``dir(_NamedFunctionSpec)`` to inspect adjacent members.
+        """
         ...
 
 
@@ -144,10 +242,10 @@ class _SignedFunctionMeta(type(sp.Function)):
     """Metaclass that allows overriding ``__signature__`` on generated classes."""
 
     @property
-    def __signature__(cls) -> Optional[inspect.Signature]:  # noqa: D401
+    def __signature__(cls) -> inspect.Signature | None:  # noqa: D401
         """Expose generated call signatures for ``inspect.signature``."""
         # Invariant: we only set `_custom_signature` on classes created by this module.
-        return cast(Optional[inspect.Signature], getattr(cls, "_custom_signature", None))
+        return cast(inspect.Signature | None, getattr(cls, "_custom_signature", None))
 
 
 # === SECTION: LaTeX helpers [id: latex]===
@@ -195,52 +293,73 @@ _GREEK_LETTERS: set[str] = {
 }
 
 
-def _get_smart_latex_symbol(name: str) -> sp.Symbol:
-    """Return a Symbol with a helpful LaTeX name.
+def get_named_function_registry() -> dict[str, type[sp.Function]]:
+    """Return a snapshot of the global canonical NamedFunction registry.
 
-    Rules
-    -----
-    - Greek letter names are rendered as Greek in LaTeX (``alpha`` -> ``\\alpha``).
-    - Multi-letter words are wrapped in ``\\mathrm{...}``.
-    - Underscores are interpreted as subscripts (``x_val`` -> ``x_{val}``).
+    Full API
+    --------
+    ``get_named_function_registry() -> dict[str, type[sp.Function]]``
 
-    Notes
-    -----
-    This affects LaTeX rendering only. The symbol's *SymPy name* remains unchanged.
+    Parameters
+    ----------
+    None. This API does not declare user-supplied parameters beyond implicit object context.
+
+    Returns
+    -------
+    dict[str, type[sp.Function]]
+        Mapping from canonical function names to the generated SymPy Function classes.
+
+    Optional arguments
+    ------------------
+    This API does not declare optional arguments in its Python signature.
+
+    Architecture note
+    -----------------
+    This callable lives in ``gu_toolkit.NamedFunction``. These helpers bridge symbolic authoring with numeric execution so notebook expressions can stay concise without giving up compiled evaluation.
 
     Examples
     --------
-    >>> import sympy as sp
-    >>> from NamedFunction import _get_smart_latex_symbol  # internal helper
-    >>> s = _get_smart_latex_symbol("x_val")
-    >>> sp.latex(s)
-    'x_{val}'
+    Basic use::
+
+        from gu_toolkit.NamedFunction import get_named_function_registry
+        registry = get_named_function_registry()
+
+    Discovery-oriented use::
+
+        help(get_named_function_registry)
+        # then follow the guide/test links listed below
+
+    Learn more / explore
+    --------------------
+    - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the package.
+    - Example notebook: ``examples/Toolkit_overview.ipynb``.
+    - Regression/spec tests: ``tests/test_numeric_callable_api.py``.
+    - Runtime discovery tip: inspect the returned mapping together with ``NamedFunction`` examples to see which symbolic heads are available in the current session.
+    - In a notebook or REPL, run ``help(get_named_function_registry)`` and inspect sibling APIs in the same module.
     """
-    if not name:
-        return sp.Symbol(name)
 
-    if "_" in name:
-        head, sub = name.split("_", 1)
-    else:
-        head, sub = name, None
+    return dict(_NAMED_FUNCTION_REGISTRY)
 
-    if len(head) > 1 and head not in _GREEK_LETTERS:
-        tex_head = f"\\mathrm{{{head}}}"
-    else:
-        tex_head = f"\\{head}" if head in _GREEK_LETTERS else head
 
-    tex = f"{tex_head}_{{{sub}}}" if sub else tex_head
-    return sp.Symbol(name, latex_name=tex)
+def _register_named_function(func_cls: type[sp.Function]) -> type[sp.Function]:
+    """Register one generated NamedFunction class by canonical name."""
+
+    name = getattr(func_cls, "__gu_name__", getattr(func_cls, "__name__", ""))
+    if isinstance(name, str) and name:
+        _NAMED_FUNCTION_REGISTRY[name] = func_cls
+    return func_cls
+
+
+def _get_smart_latex_symbol(name: str) -> sp.Symbol:
+    """Return one canonical Symbol for documentation placeholders."""
+
+    return symbol(validate_identifier(name, role="symbol"))
 
 
 def _latex_function_name(name: str) -> str:
-    """Return a LaTeX string for a function name."""
-    if len(name) > 1 and name not in _GREEK_LETTERS:
-        return f"\\mathrm{{{name}}}"
-    if name in _GREEK_LETTERS:
-        return f"\\{name}"
-    return name
+    """Return the semantic LaTeX head for one canonical function name."""
 
+    return function_head_to_latex(validate_identifier(name, role="function"))
 
 # === SECTION: Sympify & documentation helpers [id: docs]===
 #
@@ -290,7 +409,9 @@ def _validate_fixed_positional_signature(sig: inspect.Signature, *, what: str) -
     return len(params)
 
 
-def _sympify_for_docs(value: _SymbolicReturn, *, locals_map: dict[str, sp.Symbol]) -> Optional[sp.Basic]:
+def _sympify_for_docs(
+    value: _SymbolicReturn, *, locals_map: dict[str, sp.Symbol]
+) -> sp.Basic | None:
     """Try to coerce *value* into a SymPy expression (for docs and rewriting).
 
     Returns
@@ -324,10 +445,7 @@ def _sympify_for_docs(value: _SymbolicReturn, *, locals_map: dict[str, sp.Symbol
 
 
 def _generate_enhanced_docstring(
-    *,
-    original_doc: Optional[str],
-    definition_code: str,
-    definition_latex: str
+    *, original_doc: str | None, definition_code: str, definition_latex: str
 ) -> str:
     """Create a consistent docstring for the generated SymPy Function class."""
     doc: list[str] = []
@@ -348,7 +466,6 @@ def _generate_enhanced_docstring(
         doc.append("----")
         doc.append(f"$ {definition_latex} $")
 
-
     return "\n".join(doc).strip()
 
 
@@ -357,7 +474,7 @@ def _doc_placeholders_from_signature(
     *,
     nargs: int,
     skip_first: bool,
-) -> Tuple[sp.Symbol, ...]:
+) -> tuple[sp.Symbol, ...]:
     """Create placeholder symbols for doc generation, using parameter names if possible."""
     params = list(sig.parameters.values())
     start = 1 if skip_first else 0
@@ -377,7 +494,7 @@ def _build_definition_strings(
     nargs: int,
     call_symbolic: Callable[..., _SymbolicReturn],
     skip_first_arg: bool,
-) -> Tuple[str, str]:
+) -> tuple[str, str]:
     """Compute the code and LaTeX definition strings for documentation.
 
     This function is best-effort: failures must not prevent decoration.
@@ -386,7 +503,9 @@ def _build_definition_strings(
     locals_map = {s.name: s for s in syms}
 
     try:
-        raw_value = call_symbolic(*syms) if not skip_first_arg else call_symbolic(None, *syms)
+        raw_value = (
+            call_symbolic(*syms) if not skip_first_arg else call_symbolic(None, *syms)
+        )
     except Exception as e:
         return f"Could not expand definition automatically.\nError: {e}", ""
 
@@ -406,8 +525,8 @@ def _build_definition_strings(
     code_def = f"`{lhs_code} = {rhs_code}`"
 
     # LaTeX-style definition.
-    args_latex = ", ".join(sp.latex(s) for s in syms)
-    rhs_latex = sp.latex(expr)
+    args_latex = ", ".join(render_latex(s) for s in syms)
+    rhs_latex = render_latex(expr)
     latex_def = f"{_latex_function_name(func_name)}({args_latex}) = {rhs_latex}"
     return code_def, latex_def
 
@@ -418,50 +537,60 @@ def _build_definition_strings(
 # === END SECTION: Public decorator ===
 
 
-def NamedFunction(obj: Union[_SymbolicCallable, Type[_NamedFunctionSpec]]) -> Type[sp.Function]:
+def NamedFunction(
+    obj: _SymbolicCallable | type[_NamedFunctionSpec],
+) -> type[sp.Function]:
     """Decorate a Python callable or spec class to produce a SymPy Function class.
-
-    Two modes are supported.
-
-    Mode 1: function decorator
-        The decorated function must accept ``n`` positional arguments and return:
-        - a SymPy expression (or any sympifiable value) for symbolic expansion, or
-        - ``None`` to indicate an opaque/undefined symbolic expansion.
-
-        You may also attach a NumPy implementation by setting ``func.f_numpy = callable``
-        *before* decorating.
-
-    Mode 2: class decorator
-        The decorated class must define exactly two methods:
-
-        - ``symbolic(self, *args)``: returns a SymPy expression (or sympifiable value) or ``None``.
-        - ``numeric(self, *args)``: returns a NumPy-compatible value.
-
-        The resulting SymPy Function class exposes ``f_numpy(*args)`` that calls the class's
-        ``numeric`` method (without instantiating the class).
-
+    
+    Full API
+    --------
+    ``NamedFunction(obj: _SymbolicCallable | type[_NamedFunctionSpec]) -> type[sp.Function]``
+    
     Parameters
     ----------
-    obj:
-        A function or a class meeting the requirements above.
-
+    obj : _SymbolicCallable | type[_NamedFunctionSpec]
+        Value for ``obj`` in this API. Required.
+    
     Returns
     -------
-    Type[sympy.Function]
-        A SymPy Function subclass with name equal to the original object name.
-
-    Raises
-    ------
-    TypeError
-        If ``obj`` is neither a function nor a class.
-    ValueError
-        If the decorated object does not meet the required signature constraints.
+    type[sp.Function]
+        Result produced by this API.
+    
+    Optional arguments
+    ------------------
+    This API does not declare optional arguments in its Python signature.
+    
+    Architecture note
+    -----------------
+    This callable lives in ``gu_toolkit.NamedFunction``. These helpers bridge symbolic authoring with numeric execution so notebook expressions can stay concise without giving up compiled evaluation.
+    
+    Examples
+    --------
+    Basic use::
+    
+        from gu_toolkit.NamedFunction import NamedFunction
+        result = NamedFunction(...)
+    
+    Discovery-oriented use::
+    
+        help(NamedFunction)
+        # then follow the guide/test links listed below
+    
+    Learn more / explore
+    --------------------
+    - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the package.
+    - Example notebook: ``examples/Toolkit_overview.ipynb``.
+    - Regression/spec tests: ``tests/test_numeric_callable_api.py``.
+    - Runtime discovery tip: compare symbolic authoring helpers with the numeric-callable tests/examples to see how symbolic inputs become numeric callables.
+    - In a notebook or REPL, run ``help(NamedFunction)`` and inspect sibling APIs in the same module.
     """
     if inspect.isclass(obj):
-        return _handle_class_decoration(cast(Type[_NamedFunctionSpec], obj))
+        return _handle_class_decoration(cast(type[_NamedFunctionSpec], obj))
     if callable(obj):
         return _handle_function_decoration(cast(_SymbolicCallable, obj))
-    raise TypeError(f"@NamedFunction must decorate a function or a class, not {type(obj)}")
+    raise TypeError(
+        f"@NamedFunction must decorate a function or a class, not {type(obj)}"
+    )
 
 
 # === SECTION: Decoration implementations [id: impl]===
@@ -470,15 +599,23 @@ def NamedFunction(obj: Union[_SymbolicCallable, Type[_NamedFunctionSpec]]) -> Ty
 # === END SECTION: Decoration implementations ===
 
 
-def _handle_function_decoration(func: _SymbolicCallable) -> Type[sp.Function]:
+def _handle_function_decoration(func: _SymbolicCallable) -> type[sp.Function]:
     """Create a SymPy Function class from a plain function."""
-    sig = inspect.signature(func)
-    nargs = _validate_fixed_positional_signature(sig, what=f"function {getattr(func, '__name__', '<callable>')}")
+    canonical_name = validate_identifier(
+        str(getattr(func, "__gu_name__", getattr(func, "__name__", ""))),
+        role="function",
+    )
+    latex_head = getattr(func, "__gu_latex__", None) or function_head_to_latex(canonical_name)
 
-    has_numpy = callable(getattr(func, "f_numpy", None))
+    sig = inspect.signature(func)
+    nargs = _validate_fixed_positional_signature(
+        sig, what=f"function {getattr(func, '__name__', '<callable>')}"
+    )
+
+    callable(getattr(func, "f_numpy", None))
 
     definition_code, definition_latex = _build_definition_strings(
-        func_name=func.__name__,
+        func_name=canonical_name,
         sig=sig,
         nargs=nargs,
         call_symbolic=func,
@@ -488,16 +625,20 @@ def _handle_function_decoration(func: _SymbolicCallable) -> Type[sp.Function]:
     new_doc = _generate_enhanced_docstring(
         original_doc=func.__doc__,
         definition_code=definition_code,
-        definition_latex=definition_latex
+        definition_latex=definition_latex,
     )
 
-    def _eval_rewrite_as_expand_definition(self: sp.Function, *args: object, **_kwargs: object) -> sp.Basic:
+    def _eval_rewrite_as_expand_definition(
+        self: sp.Function, *args: object, **_kwargs: object
+    ) -> sp.Basic:
         raw = func(*args)
         if raw is None or raw == self:
             return self
 
         # Best-effort coercion; if we can't make a SymPy object, keep opaque.
-        locals_map = {f"x_{i}": _get_smart_latex_symbol(f"x_{i}") for i in range(len(args))}
+        locals_map = {
+            f"x_{i}": _get_smart_latex_symbol(f"x_{i}") for i in range(len(args))
+        }
         expr = _sympify_for_docs(cast(_SymbolicReturn, raw), locals_map=locals_map)
         return self if expr is None else cast(sp.Basic, expr)
 
@@ -513,31 +654,44 @@ def _handle_function_decoration(func: _SymbolicCallable) -> Type[sp.Function]:
         "_eval_evalf": _eval_evalf,
         "__module__": func.__module__,
         "__doc__": new_doc,
+        "__gu_name__": canonical_name,
+        "__gu_latex__": latex_head,
+        "_latex": function_latex_method,
         "_original_func": staticmethod(func),
         "f_numpy": getattr(func, "f_numpy", None),
     }
 
-    NewClass = _SignedFunctionMeta(func.__name__, (sp.Function,), class_dict)
+    NewClass = _SignedFunctionMeta(canonical_name, (sp.Function,), class_dict)
     NewClass._custom_signature = sig
-    return cast(Type[sp.Function], NewClass)
+    return cast(type[sp.Function], _register_named_function(NewClass))
 
 
-def _handle_class_decoration(cls: Type[_NamedFunctionSpec]) -> Type[sp.Function]:
+def _handle_class_decoration(cls: type[_NamedFunctionSpec]) -> type[sp.Function]:
     """Create a SymPy Function class from a spec class (symbolic + numeric)."""
+    canonical_name = validate_identifier(
+        str(getattr(cls, "__gu_name__", getattr(cls, "__name__", ""))),
+        role="function",
+    )
+    latex_head = getattr(cls, "__gu_latex__", None) or function_head_to_latex(canonical_name)
+
     if not hasattr(cls, "symbolic") or not hasattr(cls, "numeric"):
         raise ValueError(
             f"Class {cls.__name__} decorated with @NamedFunction must define both "
             "'symbolic' and 'numeric' methods."
         )
 
-    symbolic_func = getattr(cls, "symbolic")
-    numeric_func = getattr(cls, "numeric")
+    symbolic_func = cls.symbolic
+    numeric_func = cls.numeric
 
     sig_sym = inspect.signature(symbolic_func)
     sig_num = inspect.signature(numeric_func)
 
-    nparams_sym = _validate_fixed_positional_signature(sig_sym, what=f"{cls.__name__}.symbolic")
-    nparams_num = _validate_fixed_positional_signature(sig_num, what=f"{cls.__name__}.numeric")
+    nparams_sym = _validate_fixed_positional_signature(
+        sig_sym, what=f"{cls.__name__}.symbolic"
+    )
+    nparams_num = _validate_fixed_positional_signature(
+        sig_num, what=f"{cls.__name__}.numeric"
+    )
 
     if nparams_sym != nparams_num:
         raise ValueError(
@@ -550,7 +704,7 @@ def _handle_class_decoration(cls: Type[_NamedFunctionSpec]) -> Type[sp.Function]
         raise ValueError(f"{cls.__name__}.symbolic must accept at least 'self'.")
 
     definition_code, definition_latex = _build_definition_strings(
-        func_name=cls.__name__,
+        func_name=canonical_name,
         sig=sig_sym,
         nargs=nargs,
         call_symbolic=symbolic_func,
@@ -560,15 +714,19 @@ def _handle_class_decoration(cls: Type[_NamedFunctionSpec]) -> Type[sp.Function]
     new_doc = _generate_enhanced_docstring(
         original_doc=cls.__doc__,
         definition_code=definition_code,
-        definition_latex=definition_latex
+        definition_latex=definition_latex,
     )
 
-    def _eval_rewrite_as_expand_definition(self: sp.Function, *args: object, **_kwargs: object) -> sp.Basic:
+    def _eval_rewrite_as_expand_definition(
+        self: sp.Function, *args: object, **_kwargs: object
+    ) -> sp.Basic:
         raw = symbolic_func(None, *args)
         if raw is None or raw == self:
             return self
 
-        locals_map = {f"x_{i}": _get_smart_latex_symbol(f"x_{i}") for i in range(len(args))}
+        locals_map = {
+            f"x_{i}": _get_smart_latex_symbol(f"x_{i}") for i in range(len(args))
+        }
         expr = _sympify_for_docs(cast(_SymbolicReturn, raw), locals_map=locals_map)
         return self if expr is None else cast(sp.Basic, expr)
 
@@ -592,10 +750,13 @@ def _handle_class_decoration(cls: Type[_NamedFunctionSpec]) -> Type[sp.Function]
         "_eval_evalf": _eval_evalf,
         "__module__": cls.__module__,
         "__doc__": new_doc,
+        "__gu_name__": canonical_name,
+        "__gu_latex__": latex_head,
+        "_latex": function_latex_method,
         "f_numpy": f_numpy,
         "_original_class": cls,
     }
 
-    NewClass = _SignedFunctionMeta(cls.__name__, (sp.Function,), class_dict)
+    NewClass = _SignedFunctionMeta(canonical_name, (sp.Function,), class_dict)
     NewClass._custom_signature = public_sig
-    return cast(Type[sp.Function], NewClass)
+    return cast(type[sp.Function], _register_named_function(NewClass))

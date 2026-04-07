@@ -1,13 +1,13 @@
 """Standardized parameter-change event payloads.
 
 This module defines ``ParamEvent``, the immutable structure emitted by
-``ParamRef.observe`` and consumed by SmartFigure parameter hooks.
+``ParamRef.observe`` and consumed by Figure parameter hooks.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sympy.core.symbol import Symbol
 
@@ -18,36 +18,66 @@ if TYPE_CHECKING:
 @dataclass(frozen=True)
 class ParamEvent:
     """Normalized parameter change event emitted by ParamRef observers.
-
+    
+    Full API
+    --------
+    ``ParamEvent(parameter: Symbol, old: Any, new: Any, ref: ParamRef, raw: Any=None)``
+    
+    Public members exposed from this class: No additional public methods are declared directly on this class.
+    
     Parameters
     ----------
-    parameter : sympy.Symbol
-        The symbol whose value changed.
+    parameter : Symbol
+        Parameter symbol or parameter reference associated with this API. Required.
+    
     old : Any
-        The previous value, if provided by the underlying widget.
+        Value for ``old`` in this API. Required.
+    
     new : Any
-        The updated value from the underlying widget.
+        Value for ``new`` in this API. Required.
+    
     ref : ParamRef
-        Reference object that exposes the widget and convenience accessors.
+        Value for ``ref`` in this API. Required.
+    
     raw : Any, optional
-        Raw traitlets event payload (or ``None`` when synthesized).
-
-    Notes
-    -----
-    This structure is produced by :meth:`ParamRef.observe` and passed through
-    :class:`SmartFigure` hooks. Consumers should prefer ``parameter`` and
-    ``new`` for stable semantics, and use ``raw`` only for debugging.
-
+        Value for ``raw`` in this API. Defaults to ``None``.
+    
+    Returns
+    -------
+    ParamEvent
+        New ``ParamEvent`` instance configured according to the constructor arguments.
+    
+    Optional arguments
+    ------------------
+    - ``raw=None``: Value for ``raw`` in this API.
+    
+    Architecture note
+    -----------------
+    ``ParamEvent`` lives in ``gu_toolkit.ParamEvent``. Parameter behavior is name-authoritative and flows through ParamRef/ParameterManager abstractions so widgets, hooks, and animation all stay synchronized. Use the class as the stable owner for this slice of state rather than reaching into collaborators directly.
+    
     Examples
     --------
-    >>> import sympy as sp  # doctest: +SKIP
-    >>> from ParamEvent import ParamEvent  # doctest: +SKIP
-    >>> a = sp.symbols("a")  # doctest: +SKIP
-    >>> # A synthetic event for testing or documentation purposes:
-    >>> ParamEvent(parameter=a, old=0, new=1, ref=None, raw=None)  # doctest: +SKIP
+    Construction::
+    
+        from gu_toolkit.ParamEvent import ParamEvent
+        obj = ParamEvent(...)
+    
+    Discovery-oriented use::
+    
+        help(ParamEvent)
+        dir(obj)
+    
+    Learn more / explore
+    --------------------
+    - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the package.
+    - Guide: ``docs/guides/parameter-key-semantics.md``.
+    - Guide: ``docs/guides/parameter-animation.md``.
+    - Runtime discovery tip: inspect ``fig.parameters``, ``ParamRef.capabilities``, and the slider/animation helpers together to understand the live parameter model.
+    - In a notebook or REPL, run ``help(ParamEvent)`` and ``dir(ParamEvent)`` to inspect adjacent members.
     """
+
     parameter: Symbol
     old: Any
     new: Any
-    ref: "ParamRef"
+    ref: ParamRef
     raw: Any = None

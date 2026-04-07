@@ -1,0 +1,226 @@
+/* Shared control families.
+   These selectors are intentionally family-specific so checkbox internals,
+   single-select dropdowns, and listboxes do not inherit text-field chrome. */
+
+.gu-readonly-value {
+  display: flex !important;
+  align-items: center !important;
+  width: 100% !important;
+  min-height: var(--gu-control-height-md) !important;
+  padding: 0 var(--gu-control-padding-x) !important;
+  border-radius: var(--gu-radius-sm) !important;
+  border: var(--gu-control-border-width) solid var(--gu-color-border-strong) !important;
+  background: var(--gu-color-surface-subtle) !important;
+  color: var(--gu-color-text) !important;
+  font-size: var(--gu-font-size-body) !important;
+  line-height: 1.35 !important;
+}
+
+.gu-control,
+.gu-control > *,
+.gu-readonly-value {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+}
+
+/* Ipywidgets Box helpers default to overflow:auto. Shared single-line control
+   shells opt out so tiny cross-axis size mismatches do not surface stray
+   scrollbars around native inputs such as dropdowns or color pickers. */
+:is(.gu-control-text, .gu-control-numeric, .gu-control-dropdown, .gu-control-color),
+:is(.gu-control-text, .gu-control-numeric, .gu-control-dropdown, .gu-control-color) > * {
+  box-sizing: border-box !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow-x: hidden !important;
+  overflow-y: hidden !important;
+}
+
+.gu-control-text :is(input:not([type="checkbox"]):not([type="radio"]), textarea),
+.gu-control-numeric :is(input, textarea),
+.gu-control-color :is(input[type="color"], input[type="text"]),
+.gu-control-dropdown select:not([multiple]),
+.gu-control-multiselect select[multiple],
+.gu-control-targets select[multiple],
+.gu-readonly-value {
+  box-sizing: border-box !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  color: var(--gu-color-text) !important;
+  background: var(--gu-color-surface) !important;
+  border: var(--gu-control-border-width) solid var(--gu-color-border-strong) !important;
+  border-radius: var(--gu-radius-sm) !important;
+  box-shadow: none !important;
+  font-size: var(--gu-font-size-body) !important;
+  line-height: 1.35 !important;
+}
+
+.gu-control-text :is(input:not([type="checkbox"]):not([type="radio"]), textarea),
+.gu-control-numeric :is(input, textarea),
+.gu-control-color input[type="text"],
+.gu-control-dropdown select:not([multiple]) {
+  min-height: var(--gu-control-height-md) !important;
+  padding: 0 var(--gu-control-padding-x) !important;
+}
+
+.gu-control-text textarea,
+.gu-control-numeric textarea {
+  padding-top: var(--gu-control-padding-y) !important;
+  padding-bottom: var(--gu-control-padding-y) !important;
+}
+
+.gu-control-color:is(.widget-colorpicker, .jupyter-widget-colorpicker),
+.gu-control-color :is(.widget-colorpicker-input, .jupyter-widget-colorpicker-input) {
+  display: flex !important;
+  align-items: stretch !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-height: var(--gu-control-height-md) !important;
+  height: var(--gu-control-height-md) !important;
+  line-height: 1 !important;
+  overflow: hidden !important;
+  scrollbar-width: none !important;
+}
+
+.gu-control-color input[type="color"] {
+  display: block !important;
+  min-width: 0 !important;
+  min-height: var(--gu-control-height-md) !important;
+  height: var(--gu-control-height-md) !important;
+  max-height: var(--gu-control-height-md) !important;
+  padding: 4px !important;
+  cursor: pointer !important;
+  overflow: hidden !important;
+  overflow-y: hidden !important;
+  scrollbar-width: none !important;
+}
+
+.gu-control-color :is(.widget-colorpicker-input, .jupyter-widget-colorpicker-input)::-webkit-scrollbar,
+.gu-control-color input[type="color"]::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.gu-control-dropdown select:not([multiple]) {
+  min-height: var(--gu-control-height-md) !important;
+  height: var(--gu-control-height-md) !important;
+  padding: 0 34px 0 var(--gu-control-padding-x) !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  overflow-y: hidden !important;
+  text-overflow: ellipsis !important;
+  appearance: auto !important;
+}
+
+.gu-control-multiselect select[multiple],
+.gu-control-targets select[multiple] {
+  min-height: var(--gu-listbox-min-height) !important;
+  padding: var(--gu-space-2) var(--gu-control-padding-x) !important;
+  resize: vertical !important;
+}
+
+.gu-control-dropdown,
+.gu-control-dropdown > *,
+.gu-control-dropdown :is(.widget-dropdown, .widget-select, select:not([multiple])) {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+}
+
+.gu-control-dropdown select:not([multiple]) {
+  display: block !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  line-height: calc(var(--gu-control-height-md) - 2px) !important;
+  overflow-y: clip !important;
+  scrollbar-width: none !important;
+}
+
+.gu-control-dropdown select:not([multiple])::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.gu-control-checkbox,
+.gu-control-checkbox > *,
+.gu-control-checkbox :is(label, .widget-label, .widget-checkbox, .widget-inline-hbox, .widget-hbox) {
+  box-sizing: border-box !important;
+  width: auto !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+}
+
+.gu-control-checkbox,
+.gu-control-checkbox :is(label, .widget-checkbox, .widget-inline-hbox, .widget-hbox) {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: var(--gu-space-2) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.gu-control-checkbox .widget-label,
+.gu-control-checkbox label {
+  display: inline-flex !important;
+  align-items: center !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  color: var(--gu-color-text) !important;
+  font-size: 13px !important;
+  line-height: 1.35 !important;
+  font-weight: 400 !important;
+}
+
+.gu-control-checkbox .widget-label {
+  display: none !important;
+  width: 0 !important;
+  max-width: 0 !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+.gu-control-checkbox .widget-label-basic {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: var(--gu-space-2) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.gu-control-checkbox input[type="checkbox"] {
+  width: var(--gu-checkbox-size) !important;
+  height: var(--gu-checkbox-size) !important;
+  min-width: var(--gu-checkbox-size) !important;
+  min-height: var(--gu-checkbox-size) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  accent-color: var(--gu-checkbox-accent) !important;
+}
+
+.gu-control-text :is(input:not([type="checkbox"]):not([type="radio"]), textarea):focus-visible,
+.gu-control-numeric :is(input, textarea):focus-visible,
+.gu-control-color input[type="color"]:focus-visible,
+.gu-control-dropdown select:not([multiple]):focus-visible,
+.gu-control-multiselect select[multiple]:focus-visible,
+.gu-control-targets select[multiple]:focus-visible,
+.gu-action-button:is(button, .widget-button, .jupyter-button):focus-visible,
+.gu-action-button :is(button, .widget-button, .jupyter-button):focus-visible,
+:is(.gu-icon-button, .smart-slider-icon-button, .gu-inline-icon-button, .gu-legend-inline-button):is(button, .widget-button, .jupyter-button):focus-visible,
+:is(.gu-icon-button, .smart-slider-icon-button, .gu-inline-icon-button, .gu-legend-inline-button) :is(button, .widget-button, .jupyter-button):focus-visible {
+  outline: none !important;
+  box-shadow: var(--gu-focus-ring) !important;
+}
+
+:is(.mod-invalid.gu-control-text, .mod-invalid .gu-control-text) :is(input:not([type="checkbox"]):not([type="radio"]), textarea),
+:is(.mod-invalid.gu-control-numeric, .mod-invalid .gu-control-numeric) :is(input, textarea),
+:is(.mod-invalid.gu-control-color, .mod-invalid .gu-control-color) input[type="color"],
+:is(.mod-invalid.gu-control-dropdown, .mod-invalid .gu-control-dropdown) select:not([multiple]),
+:is(.mod-invalid.gu-control-multiselect, .mod-invalid .gu-control-multiselect) select[multiple],
+:is(.mod-invalid.gu-control-targets, .mod-invalid .gu-control-targets) select[multiple],
+.mod-invalid.gu-readonly-value {
+  border-color: var(--gu-color-danger) !important;
+  box-shadow: 0 0 0 1px var(--gu-color-danger-soft) !important;
+}

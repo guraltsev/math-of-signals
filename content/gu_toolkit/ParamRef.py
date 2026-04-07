@@ -1,12 +1,13 @@
 """Parameter-reference protocol and default widget-backed implementation.
 
-This module defines the discoverable contract used by SmartFigure parameter APIs
+This module defines the discoverable contract used by Figure parameter APIs
 and a proxy implementation that wraps concrete controls.
 """
 
 from __future__ import annotations
 
-from typing import Any, Callable, Protocol, Sequence, runtime_checkable
+from collections.abc import Callable, Sequence
+from typing import Any, Protocol, runtime_checkable
 
 from sympy.core.symbol import Symbol
 
@@ -15,148 +16,803 @@ from .ParamEvent import ParamEvent
 
 @runtime_checkable
 class ParamRef(Protocol):
-    """Protocol for parameter references used by SmartFigure.
-
-    A ``ParamRef`` exposes the current value of a parameter (typically from a
-    slider widget), a reference to the underlying widget, and observation hooks
-    that emit :class:`ParamEvent` objects.
-
-    Notes
-    -----
-    Implementations should emit :class:`ParamEvent` on value changes and support
-    ``reset`` if the underlying control provides it.
+    """Protocol for parameter references used by Figure.
+    
+    Full API
+    --------
+    ``ParamRef()``
+    
+    Public members exposed from this class: ``parameter``, ``widget``, ``value``, ``observe``, ``reset``, ``capabilities``,
+        ``animation_time``, ``animation_mode``, ``animation_running``, ``start_animation``,
+        ``stop_animation``, ``toggle_animation``
+    
+    Parameters
+    ----------
+    None. This API does not declare user-supplied parameters beyond implicit object context.
+    
+    Returns
+    -------
+    Any implementation of ``ParamRef``
+        Objects matching this protocol/interface can be passed anywhere the toolkit expects ``ParamRef``.
+    
+    Optional arguments
+    ------------------
+    This API does not declare optional arguments in its Python signature.
+    
+    Architecture note
+    -----------------
+    ``ParamRef`` lives in ``gu_toolkit.ParamRef``. Parameter behavior is name-authoritative and flows through ParamRef/ParameterManager abstractions so widgets, hooks, and animation all stay synchronized. Use the class as the stable owner for this slice of state rather than reaching into collaborators directly.
+    
+    Examples
+    --------
+    Implementation sketch::
+    
+        from gu_toolkit.ParamRef import ParamRef
+    
+        class MyParamRef(ParamRef):
+            ...
+    
+    Discovery-oriented use::
+    
+        help(ParamRef)
+        dir(MyParamRef)
+    
+    Learn more / explore
+    --------------------
+    - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the package.
+    - Guide: ``docs/guides/parameter-key-semantics.md``.
+    - Guide: ``docs/guides/parameter-animation.md``.
+    - Runtime discovery tip: inspect ``fig.parameters``, ``ParamRef.capabilities``, and the slider/animation helpers together to understand the live parameter model.
+    - In a notebook or REPL, run ``help(ParamRef)`` and ``dir(ParamRef)`` to inspect adjacent members.
     """
 
     @property
     def parameter(self) -> Symbol:
         """Return the SymPy symbol this reference controls.
-
+        
+        Full API
+        --------
+        ``obj.parameter -> Symbol``
+        
+        Parameters
+        ----------
+        None. This API does not declare user-supplied parameters beyond implicit object context.
+        
         Returns
         -------
-        sympy.Symbol
-            The parameter symbol associated with this reference.
-
+        Symbol
+            Result produced by this API.
+        
+        Optional arguments
+        ------------------
+        This API does not declare optional arguments in its Python signature.
+        
+        Architecture note
+        -----------------
+        This member belongs to ``ParamRef``. Parameter behavior is name-authoritative and flows through ParamRef/ParameterManager abstractions so widgets, hooks, and animation all stay synchronized. Use it through the owning object rather than bypassing the surrounding figure/runtime machinery.
+        
         Examples
         --------
-        >>> import sympy as sp  # doctest: +SKIP
-        >>> a = sp.symbols("a")  # doctest: +SKIP
-        >>> ref = ProxyParamRef(a, object())  # doctest: +SKIP
-        >>> ref.parameter  # doctest: +SKIP
-        a
-
-        Notes
-        -----
-        This symbol is used when constructing :class:`ParamEvent` objects.
+        Basic use::
+        
+            obj = ParamRef(...)
+            current = obj.parameter
+        
+        Discovery-oriented use::
+        
+            help(ParamRef)
+            # then follow the guide/test links listed below
+        
+        Learn more / explore
+        --------------------
+        - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the package.
+        - Guide: ``docs/guides/parameter-key-semantics.md``.
+        - Guide: ``docs/guides/parameter-animation.md``.
+        - Runtime discovery tip: inspect ``fig.parameters``, ``ParamRef.capabilities``, and the slider/animation helpers together to understand the live parameter model.
+        - In a notebook or REPL, run ``help(ParamRef)`` and ``dir(ParamRef)`` to inspect adjacent members.
         """
 
     @property
     def widget(self) -> Any:
         """Return the underlying widget/control instance.
-
+        
+        Full API
+        --------
+        ``obj.widget -> Any``
+        
+        Parameters
+        ----------
+        None. This API does not declare user-supplied parameters beyond implicit object context.
+        
         Returns
         -------
         Any
-            Widget instance providing a ``value`` trait.
-
+            Result produced by this API.
+        
+        Optional arguments
+        ------------------
+        This API does not declare optional arguments in its Python signature.
+        
+        Architecture note
+        -----------------
+        This member belongs to ``ParamRef``. Parameter behavior is name-authoritative and flows through ParamRef/ParameterManager abstractions so widgets, hooks, and animation all stay synchronized. Use it through the owning object rather than bypassing the surrounding figure/runtime machinery.
+        
         Examples
         --------
-        >>> import sympy as sp  # doctest: +SKIP
-        >>> a = sp.symbols("a")  # doctest: +SKIP
-        >>> ref = ProxyParamRef(a, object())  # doctest: +SKIP
-        >>> ref.widget  # doctest: +SKIP
-        <...>
+        Basic use::
+        
+            obj = ParamRef(...)
+            current = obj.widget
+        
+        Discovery-oriented use::
+        
+            help(ParamRef)
+            # then follow the guide/test links listed below
+        
+        Learn more / explore
+        --------------------
+        - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the package.
+        - Guide: ``docs/guides/parameter-key-semantics.md``.
+        - Guide: ``docs/guides/parameter-animation.md``.
+        - Runtime discovery tip: inspect ``fig.parameters``, ``ParamRef.capabilities``, and the slider/animation helpers together to understand the live parameter model.
+        - In a notebook or REPL, run ``help(ParamRef)`` and ``dir(ParamRef)`` to inspect adjacent members.
         """
 
     @property
     def value(self) -> Any:
         """Return the current parameter value.
-
+        
+        Full API
+        --------
+        ``obj.value -> Any``
+        
+        Parameters
+        ----------
+        None. This API does not declare user-supplied parameters beyond implicit object context.
+        
         Returns
         -------
         Any
-            The current widget value.
-
-        Notes
-        -----
-        In a typical slider-based implementation, this is a ``float``.
+            Result produced by this API.
+        
+        Optional arguments
+        ------------------
+        This API does not declare optional arguments in its Python signature.
+        
+        Architecture note
+        -----------------
+        This member belongs to ``ParamRef``. Parameter behavior is name-authoritative and flows through ParamRef/ParameterManager abstractions so widgets, hooks, and animation all stay synchronized. Use it through the owning object rather than bypassing the surrounding figure/runtime machinery.
+        
+        Examples
+        --------
+        Basic use::
+        
+            obj = ParamRef(...)
+            current = obj.value
+        
+        Discovery-oriented use::
+        
+            help(ParamRef)
+            # then follow the guide/test links listed below
+        
+        Learn more / explore
+        --------------------
+        - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the package.
+        - Guide: ``docs/guides/parameter-key-semantics.md``.
+        - Guide: ``docs/guides/parameter-animation.md``.
+        - Runtime discovery tip: inspect ``fig.parameters``, ``ParamRef.capabilities``, and the slider/animation helpers together to understand the live parameter model.
+        - In a notebook or REPL, run ``help(ParamRef)`` and ``dir(ParamRef)`` to inspect adjacent members.
         """
 
     @value.setter
     def value(self, v: Any) -> None:
         """Set the current parameter value.
-
+        
+        Full API
+        --------
+        ``obj.value = v``
+        
         Parameters
         ----------
         v : Any
-            New value to set on the underlying widget.
-        """
-
-    def observe(self, callback: Callable[[ParamEvent], None], *, fire: bool = False) -> None:
-        """Register a callback that receives :class:`ParamEvent` on changes.
-
-        Parameters
-        ----------
-        callback : callable
-            Function invoked with a :class:`ParamEvent` instance.
-        fire : bool, optional
-            If ``True``, invoke the callback immediately with a synthetic event.
-
+            Value for ``v`` in this API. Required.
+        
         Returns
         -------
         None
-
+            This call is used for side effects and does not return a value.
+        
+        Optional arguments
+        ------------------
+        This API does not declare optional arguments in its Python signature.
+        
+        Architecture note
+        -----------------
+        This member belongs to ``ParamRef``. Parameter behavior is name-authoritative and flows through ParamRef/ParameterManager abstractions so widgets, hooks, and animation all stay synchronized. Use it through the owning object rather than bypassing the surrounding figure/runtime machinery.
+        
         Examples
         --------
-        >>> import sympy as sp  # doctest: +SKIP
-        >>> from SmartSlider import SmartFloatSlider  # doctest: +SKIP
-        >>> a = sp.symbols("a")  # doctest: +SKIP
-        >>> ref = ProxyParamRef(a, SmartFloatSlider())  # doctest: +SKIP
-        >>> ref.observe(lambda event: None, fire=False)  # doctest: +SKIP
+        Basic use::
+        
+            obj = ParamRef(...)
+            obj.value = v
+        
+        Discovery-oriented use::
+        
+            help(ParamRef)
+            # then follow the guide/test links listed below
+        
+        Learn more / explore
+        --------------------
+        - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the package.
+        - Guide: ``docs/guides/parameter-key-semantics.md``.
+        - Guide: ``docs/guides/parameter-animation.md``.
+        - Runtime discovery tip: inspect ``fig.parameters``, ``ParamRef.capabilities``, and the slider/animation helpers together to understand the live parameter model.
+        - In a notebook or REPL, run ``help(ParamRef)`` and ``dir(ParamRef)`` to inspect adjacent members.
+        """
 
-        See Also
+    def observe(
+        self, callback: Callable[[ParamEvent], None], *, fire: bool = False
+    ) -> None:
+        """Register a callback that receives :class:`ParamEvent` on changes.
+        
+        Full API
         --------
-        ParamEvent : Normalized event payload delivered to callbacks.
+        ``obj.observe(callback: Callable[[ParamEvent], None], *, fire: bool=False) -> None``
+        
+        Parameters
+        ----------
+        callback : Callable[[ParamEvent], None]
+            Callable that is invoked when the relevant event fires. Required.
+        
+        fire : bool, optional
+            Boolean flag that requests an immediate callback with the current state. Defaults to ``False``.
+        
+        Returns
+        -------
+        None
+            This call is used for side effects and does not return a value.
+        
+        Optional arguments
+        ------------------
+        - ``fire=False``: Boolean flag that requests an immediate callback with the current state.
+        
+        Architecture note
+        -----------------
+        This member belongs to ``ParamRef``. Parameter behavior is name-authoritative and flows through ParamRef/ParameterManager abstractions so widgets, hooks, and animation all stay synchronized. Use it through the owning object rather than bypassing the surrounding figure/runtime machinery.
+        
+        Examples
+        --------
+        Basic use::
+        
+            obj = ParamRef(...)
+            obj.observe(...)
+        
+        Discovery-oriented use::
+        
+            help(ParamRef)
+            # then follow the guide/test links listed below
+        
+        Learn more / explore
+        --------------------
+        - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the package.
+        - Guide: ``docs/guides/parameter-key-semantics.md``.
+        - Guide: ``docs/guides/parameter-animation.md``.
+        - Runtime discovery tip: inspect ``fig.parameters``, ``ParamRef.capabilities``, and the slider/animation helpers together to understand the live parameter model.
+        - In a notebook or REPL, run ``help(ParamRef)`` and ``dir(ParamRef)`` to inspect adjacent members.
         """
 
     def reset(self) -> None:
         """Reset the underlying control to its default value.
-
+        
+        Full API
+        --------
+        ``obj.reset() -> None``
+        
+        Parameters
+        ----------
+        None. This API does not declare user-supplied parameters beyond implicit object context.
+        
         Returns
         -------
         None
-
-        Notes
-        -----
-        Implementations should raise ``AttributeError`` if the control does not
-        support resetting.
+            This call is used for side effects and does not return a value.
+        
+        Optional arguments
+        ------------------
+        This API does not declare optional arguments in its Python signature.
+        
+        Architecture note
+        -----------------
+        This member belongs to ``ParamRef``. Parameter behavior is name-authoritative and flows through ParamRef/ParameterManager abstractions so widgets, hooks, and animation all stay synchronized. Use it through the owning object rather than bypassing the surrounding figure/runtime machinery.
+        
+        Examples
+        --------
+        Basic use::
+        
+            obj = ParamRef(...)
+            obj.reset(...)
+        
+        Discovery-oriented use::
+        
+            help(ParamRef)
+            # then follow the guide/test links listed below
+        
+        Learn more / explore
+        --------------------
+        - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the package.
+        - Guide: ``docs/guides/parameter-key-semantics.md``.
+        - Guide: ``docs/guides/parameter-animation.md``.
+        - Runtime discovery tip: inspect ``fig.parameters``, ``ParamRef.capabilities``, and the slider/animation helpers together to understand the live parameter model.
+        - In a notebook or REPL, run ``help(ParamRef)`` and ``dir(ParamRef)`` to inspect adjacent members.
         """
 
     @property
     def capabilities(self) -> Sequence[str]:
         """Return optional metadata keys supported by this reference.
-
+        
+        Full API
+        --------
+        ``obj.capabilities -> Sequence[str]``
+        
+        Parameters
+        ----------
+        None. This API does not declare user-supplied parameters beyond implicit object context.
+        
         Returns
         -------
         Sequence[str]
-            Zero or more of: ``default_value``, ``min``, ``max``, ``step``.
+            Result produced by this API.
+        
+        Optional arguments
+        ------------------
+        This API does not declare optional arguments in its Python signature.
+        
+        Architecture note
+        -----------------
+        This member belongs to ``ParamRef``. Parameter behavior is name-authoritative and flows through ParamRef/ParameterManager abstractions so widgets, hooks, and animation all stay synchronized. Use it through the owning object rather than bypassing the surrounding figure/runtime machinery.
+        
+        Examples
+        --------
+        Basic use::
+        
+            obj = ParamRef(...)
+            current = obj.capabilities
+        
+        Discovery-oriented use::
+        
+            help(ParamRef)
+            # then follow the guide/test links listed below
+        
+        Learn more / explore
+        --------------------
+        - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the package.
+        - Guide: ``docs/guides/parameter-key-semantics.md``.
+        - Guide: ``docs/guides/parameter-animation.md``.
+        - Runtime discovery tip: inspect ``fig.parameters``, ``ParamRef.capabilities``, and the slider/animation helpers together to understand the live parameter model.
+        - In a notebook or REPL, run ``help(ParamRef)`` and ``dir(ParamRef)`` to inspect adjacent members.
+        """
+
+    @property
+    def animation_time(self) -> Any:
+        """Return the configured animation duration if supported.
+        
+        Full API
+        --------
+        ``obj.animation_time -> Any``
+        
+        Parameters
+        ----------
+        None. This API does not declare user-supplied parameters beyond implicit object context.
+        
+        Returns
+        -------
+        Any
+            Result produced by this API.
+        
+        Optional arguments
+        ------------------
+        This API does not declare optional arguments in its Python signature.
+        
+        Architecture note
+        -----------------
+        This member belongs to ``ParamRef``. Parameter behavior is name-authoritative and flows through ParamRef/ParameterManager abstractions so widgets, hooks, and animation all stay synchronized. Use it through the owning object rather than bypassing the surrounding figure/runtime machinery.
+        
+        Examples
+        --------
+        Basic use::
+        
+            obj = ParamRef(...)
+            current = obj.animation_time
+        
+        Discovery-oriented use::
+        
+            help(ParamRef)
+            # then follow the guide/test links listed below
+        
+        Learn more / explore
+        --------------------
+        - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the package.
+        - Guide: ``docs/guides/parameter-key-semantics.md``.
+        - Guide: ``docs/guides/parameter-animation.md``.
+        - Runtime discovery tip: inspect ``fig.parameters``, ``ParamRef.capabilities``, and the slider/animation helpers together to understand the live parameter model.
+        - In a notebook or REPL, run ``help(ParamRef)`` and ``dir(ParamRef)`` to inspect adjacent members.
+        """
+
+    @animation_time.setter
+    def animation_time(self, value: Any) -> None:
+        """Set the configured animation duration if supported.
+        
+        Full API
+        --------
+        ``obj.animation_time = value``
+        
+        Parameters
+        ----------
+        value : Any
+            New or current value for the relevant property, control, or calculation. Required.
+        
+        Returns
+        -------
+        None
+            This call is used for side effects and does not return a value.
+        
+        Optional arguments
+        ------------------
+        This API does not declare optional arguments in its Python signature.
+        
+        Architecture note
+        -----------------
+        This member belongs to ``ParamRef``. Parameter behavior is name-authoritative and flows through ParamRef/ParameterManager abstractions so widgets, hooks, and animation all stay synchronized. Use it through the owning object rather than bypassing the surrounding figure/runtime machinery.
+        
+        Examples
+        --------
+        Basic use::
+        
+            obj = ParamRef(...)
+            obj.animation_time = value
+        
+        Discovery-oriented use::
+        
+            help(ParamRef)
+            # then follow the guide/test links listed below
+        
+        Learn more / explore
+        --------------------
+        - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the package.
+        - Guide: ``docs/guides/parameter-key-semantics.md``.
+        - Guide: ``docs/guides/parameter-animation.md``.
+        - Runtime discovery tip: inspect ``fig.parameters``, ``ParamRef.capabilities``, and the slider/animation helpers together to understand the live parameter model.
+        - In a notebook or REPL, run ``help(ParamRef)`` and ``dir(ParamRef)`` to inspect adjacent members.
+        """
+
+    @property
+    def animation_mode(self) -> Any:
+        """Return the configured animation mode if supported.
+        
+        Full API
+        --------
+        ``obj.animation_mode -> Any``
+        
+        Parameters
+        ----------
+        None. This API does not declare user-supplied parameters beyond implicit object context.
+        
+        Returns
+        -------
+        Any
+            Result produced by this API.
+        
+        Optional arguments
+        ------------------
+        This API does not declare optional arguments in its Python signature.
+        
+        Architecture note
+        -----------------
+        This member belongs to ``ParamRef``. Parameter behavior is name-authoritative and flows through ParamRef/ParameterManager abstractions so widgets, hooks, and animation all stay synchronized. Use it through the owning object rather than bypassing the surrounding figure/runtime machinery.
+        
+        Examples
+        --------
+        Basic use::
+        
+            obj = ParamRef(...)
+            current = obj.animation_mode
+        
+        Discovery-oriented use::
+        
+            help(ParamRef)
+            # then follow the guide/test links listed below
+        
+        Learn more / explore
+        --------------------
+        - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the package.
+        - Guide: ``docs/guides/parameter-key-semantics.md``.
+        - Guide: ``docs/guides/parameter-animation.md``.
+        - Runtime discovery tip: inspect ``fig.parameters``, ``ParamRef.capabilities``, and the slider/animation helpers together to understand the live parameter model.
+        - In a notebook or REPL, run ``help(ParamRef)`` and ``dir(ParamRef)`` to inspect adjacent members.
+        """
+
+    @animation_mode.setter
+    def animation_mode(self, value: Any) -> None:
+        """Set the configured animation mode if supported.
+        
+        Full API
+        --------
+        ``obj.animation_mode = value``
+        
+        Parameters
+        ----------
+        value : Any
+            New or current value for the relevant property, control, or calculation. Required.
+        
+        Returns
+        -------
+        None
+            This call is used for side effects and does not return a value.
+        
+        Optional arguments
+        ------------------
+        This API does not declare optional arguments in its Python signature.
+        
+        Architecture note
+        -----------------
+        This member belongs to ``ParamRef``. Parameter behavior is name-authoritative and flows through ParamRef/ParameterManager abstractions so widgets, hooks, and animation all stay synchronized. Use it through the owning object rather than bypassing the surrounding figure/runtime machinery.
+        
+        Examples
+        --------
+        Basic use::
+        
+            obj = ParamRef(...)
+            obj.animation_mode = value
+        
+        Discovery-oriented use::
+        
+            help(ParamRef)
+            # then follow the guide/test links listed below
+        
+        Learn more / explore
+        --------------------
+        - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the package.
+        - Guide: ``docs/guides/parameter-key-semantics.md``.
+        - Guide: ``docs/guides/parameter-animation.md``.
+        - Runtime discovery tip: inspect ``fig.parameters``, ``ParamRef.capabilities``, and the slider/animation helpers together to understand the live parameter model.
+        - In a notebook or REPL, run ``help(ParamRef)`` and ``dir(ParamRef)`` to inspect adjacent members.
+        """
+
+    @property
+    def animation_running(self) -> Any:
+        """Return whether animation is active if supported.
+        
+        Full API
+        --------
+        ``obj.animation_running -> Any``
+        
+        Parameters
+        ----------
+        None. This API does not declare user-supplied parameters beyond implicit object context.
+        
+        Returns
+        -------
+        Any
+            Result produced by this API.
+        
+        Optional arguments
+        ------------------
+        This API does not declare optional arguments in its Python signature.
+        
+        Architecture note
+        -----------------
+        This member belongs to ``ParamRef``. Parameter behavior is name-authoritative and flows through ParamRef/ParameterManager abstractions so widgets, hooks, and animation all stay synchronized. Use it through the owning object rather than bypassing the surrounding figure/runtime machinery.
+        
+        Examples
+        --------
+        Basic use::
+        
+            obj = ParamRef(...)
+            current = obj.animation_running
+        
+        Discovery-oriented use::
+        
+            help(ParamRef)
+            # then follow the guide/test links listed below
+        
+        Learn more / explore
+        --------------------
+        - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the package.
+        - Guide: ``docs/guides/parameter-key-semantics.md``.
+        - Guide: ``docs/guides/parameter-animation.md``.
+        - Runtime discovery tip: inspect ``fig.parameters``, ``ParamRef.capabilities``, and the slider/animation helpers together to understand the live parameter model.
+        - In a notebook or REPL, run ``help(ParamRef)`` and ``dir(ParamRef)`` to inspect adjacent members.
+        """
+
+    def start_animation(self) -> None:
+        """Start animation if the underlying control supports it.
+        
+        Full API
+        --------
+        ``obj.start_animation() -> None``
+        
+        Parameters
+        ----------
+        None. This API does not declare user-supplied parameters beyond implicit object context.
+        
+        Returns
+        -------
+        None
+            This call is used for side effects and does not return a value.
+        
+        Optional arguments
+        ------------------
+        This API does not declare optional arguments in its Python signature.
+        
+        Architecture note
+        -----------------
+        This member belongs to ``ParamRef``. Parameter behavior is name-authoritative and flows through ParamRef/ParameterManager abstractions so widgets, hooks, and animation all stay synchronized. Use it through the owning object rather than bypassing the surrounding figure/runtime machinery.
+        
+        Examples
+        --------
+        Basic use::
+        
+            obj = ParamRef(...)
+            obj.start_animation(...)
+        
+        Discovery-oriented use::
+        
+            help(ParamRef)
+            # then follow the guide/test links listed below
+        
+        Learn more / explore
+        --------------------
+        - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the package.
+        - Guide: ``docs/guides/parameter-key-semantics.md``.
+        - Guide: ``docs/guides/parameter-animation.md``.
+        - Runtime discovery tip: inspect ``fig.parameters``, ``ParamRef.capabilities``, and the slider/animation helpers together to understand the live parameter model.
+        - In a notebook or REPL, run ``help(ParamRef)`` and ``dir(ParamRef)`` to inspect adjacent members.
+        """
+
+    def stop_animation(self) -> None:
+        """Stop animation if the underlying control supports it.
+        
+        Full API
+        --------
+        ``obj.stop_animation() -> None``
+        
+        Parameters
+        ----------
+        None. This API does not declare user-supplied parameters beyond implicit object context.
+        
+        Returns
+        -------
+        None
+            This call is used for side effects and does not return a value.
+        
+        Optional arguments
+        ------------------
+        This API does not declare optional arguments in its Python signature.
+        
+        Architecture note
+        -----------------
+        This member belongs to ``ParamRef``. Parameter behavior is name-authoritative and flows through ParamRef/ParameterManager abstractions so widgets, hooks, and animation all stay synchronized. Use it through the owning object rather than bypassing the surrounding figure/runtime machinery.
+        
+        Examples
+        --------
+        Basic use::
+        
+            obj = ParamRef(...)
+            obj.stop_animation(...)
+        
+        Discovery-oriented use::
+        
+            help(ParamRef)
+            # then follow the guide/test links listed below
+        
+        Learn more / explore
+        --------------------
+        - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the package.
+        - Guide: ``docs/guides/parameter-key-semantics.md``.
+        - Guide: ``docs/guides/parameter-animation.md``.
+        - Runtime discovery tip: inspect ``fig.parameters``, ``ParamRef.capabilities``, and the slider/animation helpers together to understand the live parameter model.
+        - In a notebook or REPL, run ``help(ParamRef)`` and ``dir(ParamRef)`` to inspect adjacent members.
+        """
+
+    def toggle_animation(self) -> None:
+        """Toggle animation if the underlying control supports it.
+        
+        Full API
+        --------
+        ``obj.toggle_animation() -> None``
+        
+        Parameters
+        ----------
+        None. This API does not declare user-supplied parameters beyond implicit object context.
+        
+        Returns
+        -------
+        None
+            This call is used for side effects and does not return a value.
+        
+        Optional arguments
+        ------------------
+        This API does not declare optional arguments in its Python signature.
+        
+        Architecture note
+        -----------------
+        This member belongs to ``ParamRef``. Parameter behavior is name-authoritative and flows through ParamRef/ParameterManager abstractions so widgets, hooks, and animation all stay synchronized. Use it through the owning object rather than bypassing the surrounding figure/runtime machinery.
+        
+        Examples
+        --------
+        Basic use::
+        
+            obj = ParamRef(...)
+            obj.toggle_animation(...)
+        
+        Discovery-oriented use::
+        
+            help(ParamRef)
+            # then follow the guide/test links listed below
+        
+        Learn more / explore
+        --------------------
+        - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the package.
+        - Guide: ``docs/guides/parameter-key-semantics.md``.
+        - Guide: ``docs/guides/parameter-animation.md``.
+        - Runtime discovery tip: inspect ``fig.parameters``, ``ParamRef.capabilities``, and the slider/animation helpers together to understand the live parameter model.
+        - In a notebook or REPL, run ``help(ParamRef)`` and ``dir(ParamRef)`` to inspect adjacent members.
         """
 
 
 class ProxyParamRef:
     """Default ParamRef implementation that proxies to a widget/control.
-
+    
+    Full API
+    --------
+    ``ProxyParamRef(parameter: Symbol, widget: Any)``
+    
+    Public members exposed from this class: ``parameter``, ``widget``, ``value``, ``default_value``, ``observe``, ``reset``,
+        ``capabilities``, ``min``, ``max``, ``step``, ``animation_time``,
+        ``animation_mode``, ``animation_running``, ``start_animation``, ``stop_animation``,
+        ``toggle_animation``
+    
     Parameters
     ----------
-    parameter : sympy.Symbol
-        Symbol associated with the control.
+    parameter : Symbol
+        Parameter symbol or parameter reference associated with this API. Required.
+    
     widget : Any
-        Widget/control instance providing a ``value`` trait.
-
-    Notes
-    -----
-    Optional attributes such as ``min``/``max``/``step`` and ``default_value``
-    are exposed when the underlying widget supports them. Use
-    :attr:`capabilities` to feature-detect support at runtime.
+        Widget/control instance associated with this API. Required.
+    
+    Returns
+    -------
+    ProxyParamRef
+        New ``ProxyParamRef`` instance configured according to the constructor arguments.
+    
+    Optional arguments
+    ------------------
+    This API does not declare optional arguments in its Python signature.
+    
+    Architecture note
+    -----------------
+    ``ProxyParamRef`` lives in ``gu_toolkit.ParamRef``. Parameter behavior is name-authoritative and flows through ParamRef/ParameterManager abstractions so widgets, hooks, and animation all stay synchronized. Use the class as the stable owner for this slice of state rather than reaching into collaborators directly.
+    
+    Examples
+    --------
+    Construction::
+    
+        from gu_toolkit.ParamRef import ProxyParamRef
+        obj = ProxyParamRef(...)
+    
+    Discovery-oriented use::
+    
+        help(ProxyParamRef)
+        dir(obj)
+    
+    Learn more / explore
+    --------------------
+    - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the package.
+    - Guide: ``docs/guides/parameter-key-semantics.md``.
+    - Guide: ``docs/guides/parameter-animation.md``.
+    - Runtime discovery tip: inspect ``fig.parameters``, ``ParamRef.capabilities``, and the slider/animation helpers together to understand the live parameter model.
+    - In a notebook or REPL, run ``help(ProxyParamRef)`` and ``dir(ProxyParamRef)`` to inspect adjacent members.
     """
 
     def __init__(self, parameter: Symbol, widget: Any) -> None:
@@ -176,9 +832,9 @@ class ProxyParamRef:
         Examples
         --------
         >>> import sympy as sp  # doctest: +SKIP
-        >>> from SmartSlider import SmartFloatSlider  # doctest: +SKIP
+        >>> from Slider import FloatSlider  # doctest: +SKIP
         >>> a = sp.symbols("a")  # doctest: +SKIP
-        >>> ref = ProxyParamRef(a, SmartFloatSlider())  # doctest: +SKIP
+        >>> ref = ProxyParamRef(a, FloatSlider())  # doctest: +SKIP
         """
         self._parameter = parameter
         self._widget = widget
@@ -186,168 +842,349 @@ class ProxyParamRef:
     @property
     def parameter(self) -> Symbol:
         """Return the SymPy symbol for this reference.
-
+        
+        Full API
+        --------
+        ``obj.parameter -> Symbol``
+        
+        Parameters
+        ----------
+        None. This API does not declare user-supplied parameters beyond implicit object context.
+        
         Returns
         -------
-        sympy.Symbol
-            The symbol associated with the control.
-
+        Symbol
+            Result produced by this API.
+        
+        Optional arguments
+        ------------------
+        This API does not declare optional arguments in its Python signature.
+        
+        Architecture note
+        -----------------
+        This member belongs to ``ProxyParamRef``. Parameter behavior is name-authoritative and flows through ParamRef/ParameterManager abstractions so widgets, hooks, and animation all stay synchronized. Use it through the owning object rather than bypassing the surrounding figure/runtime machinery.
+        
         Examples
         --------
-        >>> import sympy as sp  # doctest: +SKIP
-        >>> from SmartSlider import SmartFloatSlider  # doctest: +SKIP
-        >>> a = sp.symbols("a")  # doctest: +SKIP
-        >>> ref = ProxyParamRef(a, SmartFloatSlider())  # doctest: +SKIP
-        >>> ref.parameter  # doctest: +SKIP
-        a
+        Basic use::
+        
+            obj = ProxyParamRef(...)
+            current = obj.parameter
+        
+        Discovery-oriented use::
+        
+            help(ProxyParamRef)
+            # then follow the guide/test links listed below
+        
+        Learn more / explore
+        --------------------
+        - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the package.
+        - Guide: ``docs/guides/parameter-key-semantics.md``.
+        - Guide: ``docs/guides/parameter-animation.md``.
+        - Runtime discovery tip: inspect ``fig.parameters``, ``ParamRef.capabilities``, and the slider/animation helpers together to understand the live parameter model.
+        - In a notebook or REPL, run ``help(ProxyParamRef)`` and ``dir(ProxyParamRef)`` to inspect adjacent members.
         """
         return self._parameter
 
     @property
     def widget(self) -> Any:
         """Return the underlying widget/control instance.
-
+        
+        Full API
+        --------
+        ``obj.widget -> Any``
+        
+        Parameters
+        ----------
+        None. This API does not declare user-supplied parameters beyond implicit object context.
+        
         Returns
         -------
         Any
-            Widget or control providing a ``value`` trait.
-
+            Result produced by this API.
+        
+        Optional arguments
+        ------------------
+        This API does not declare optional arguments in its Python signature.
+        
+        Architecture note
+        -----------------
+        This member belongs to ``ProxyParamRef``. Parameter behavior is name-authoritative and flows through ParamRef/ParameterManager abstractions so widgets, hooks, and animation all stay synchronized. Use it through the owning object rather than bypassing the surrounding figure/runtime machinery.
+        
         Examples
         --------
-        >>> import sympy as sp  # doctest: +SKIP
-        >>> from SmartSlider import SmartFloatSlider  # doctest: +SKIP
-        >>> a = sp.symbols("a")  # doctest: +SKIP
-        >>> ref = ProxyParamRef(a, SmartFloatSlider())  # doctest: +SKIP
-        >>> isinstance(ref.widget, SmartFloatSlider)  # doctest: +SKIP
-        True
+        Basic use::
+        
+            obj = ProxyParamRef(...)
+            current = obj.widget
+        
+        Discovery-oriented use::
+        
+            help(ProxyParamRef)
+            # then follow the guide/test links listed below
+        
+        Learn more / explore
+        --------------------
+        - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the package.
+        - Guide: ``docs/guides/parameter-key-semantics.md``.
+        - Guide: ``docs/guides/parameter-animation.md``.
+        - Runtime discovery tip: inspect ``fig.parameters``, ``ParamRef.capabilities``, and the slider/animation helpers together to understand the live parameter model.
+        - In a notebook or REPL, run ``help(ProxyParamRef)`` and ``dir(ProxyParamRef)`` to inspect adjacent members.
         """
         return self._widget
 
     @property
     def value(self) -> Any:
         """Return the current value from the widget.
-
+        
+        Full API
+        --------
+        ``obj.value -> Any``
+        
+        Parameters
+        ----------
+        None. This API does not declare user-supplied parameters beyond implicit object context.
+        
         Returns
         -------
         Any
-            Current parameter value.
-
+            Result produced by this API.
+        
+        Optional arguments
+        ------------------
+        This API does not declare optional arguments in its Python signature.
+        
+        Architecture note
+        -----------------
+        This member belongs to ``ProxyParamRef``. Parameter behavior is name-authoritative and flows through ParamRef/ParameterManager abstractions so widgets, hooks, and animation all stay synchronized. Use it through the owning object rather than bypassing the surrounding figure/runtime machinery.
+        
         Examples
         --------
-        >>> import sympy as sp  # doctest: +SKIP
-        >>> from SmartSlider import SmartFloatSlider  # doctest: +SKIP
-        >>> a = sp.symbols("a")  # doctest: +SKIP
-        >>> ref = ProxyParamRef(a, SmartFloatSlider(value=2.0))  # doctest: +SKIP
-        >>> float(ref.value)  # doctest: +SKIP
-        2.0
+        Basic use::
+        
+            obj = ProxyParamRef(...)
+            current = obj.value
+        
+        Discovery-oriented use::
+        
+            help(ProxyParamRef)
+            # then follow the guide/test links listed below
+        
+        Learn more / explore
+        --------------------
+        - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the package.
+        - Guide: ``docs/guides/parameter-key-semantics.md``.
+        - Guide: ``docs/guides/parameter-animation.md``.
+        - Runtime discovery tip: inspect ``fig.parameters``, ``ParamRef.capabilities``, and the slider/animation helpers together to understand the live parameter model.
+        - In a notebook or REPL, run ``help(ProxyParamRef)`` and ``dir(ProxyParamRef)`` to inspect adjacent members.
         """
         return self._widget.value
 
     @value.setter
     def value(self, v: Any) -> None:
         """Set the current value on the widget.
-
+        
+        Full API
+        --------
+        ``obj.value = v``
+        
         Parameters
         ----------
         v : Any
-            New parameter value.
-
+            Value for ``v`` in this API. Required.
+        
         Returns
         -------
         None
-
+            This call is used for side effects and does not return a value.
+        
+        Optional arguments
+        ------------------
+        This API does not declare optional arguments in its Python signature.
+        
+        Architecture note
+        -----------------
+        This member belongs to ``ProxyParamRef``. Parameter behavior is name-authoritative and flows through ParamRef/ParameterManager abstractions so widgets, hooks, and animation all stay synchronized. Use it through the owning object rather than bypassing the surrounding figure/runtime machinery.
+        
         Examples
         --------
-        >>> import sympy as sp  # doctest: +SKIP
-        >>> from SmartSlider import SmartFloatSlider  # doctest: +SKIP
-        >>> a = sp.symbols("a")  # doctest: +SKIP
-        >>> ref = ProxyParamRef(a, SmartFloatSlider())  # doctest: +SKIP
-        >>> ref.value = 3.0  # doctest: +SKIP
+        Basic use::
+        
+            obj = ProxyParamRef(...)
+            obj.value = v
+        
+        Discovery-oriented use::
+        
+            help(ProxyParamRef)
+            # then follow the guide/test links listed below
+        
+        Learn more / explore
+        --------------------
+        - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the package.
+        - Guide: ``docs/guides/parameter-key-semantics.md``.
+        - Guide: ``docs/guides/parameter-animation.md``.
+        - Runtime discovery tip: inspect ``fig.parameters``, ``ParamRef.capabilities``, and the slider/animation helpers together to understand the live parameter model.
+        - In a notebook or REPL, run ``help(ProxyParamRef)`` and ``dir(ProxyParamRef)`` to inspect adjacent members.
         """
         self._widget.value = v
 
     @property
     def default_value(self) -> Any:
         """Return the stored default value if supported.
-
+        
+        Full API
+        --------
+        ``obj.default_value -> Any``
+        
+        Parameters
+        ----------
+        None. This API does not declare user-supplied parameters beyond implicit object context.
+        
         Returns
         -------
         Any
-            Default value used by ``reset``.
-
-        Notes
-        -----
-        Raises ``AttributeError`` if the underlying widget does not expose a
-        ``default_value`` attribute.
-
+            Result produced by this API.
+        
+        Optional arguments
+        ------------------
+        This API does not declare optional arguments in its Python signature.
+        
+        Architecture note
+        -----------------
+        This member belongs to ``ProxyParamRef``. Parameter behavior is name-authoritative and flows through ParamRef/ParameterManager abstractions so widgets, hooks, and animation all stay synchronized. Use it through the owning object rather than bypassing the surrounding figure/runtime machinery.
+        
         Examples
         --------
-        >>> import sympy as sp  # doctest: +SKIP
-        >>> from SmartSlider import SmartFloatSlider  # doctest: +SKIP
-        >>> a = sp.symbols("a")  # doctest: +SKIP
-        >>> ref = ProxyParamRef(a, SmartFloatSlider(value=1.5))  # doctest: +SKIP
-        >>> ref.default_value  # doctest: +SKIP
-        1.5
+        Basic use::
+        
+            obj = ProxyParamRef(...)
+            current = obj.default_value
+        
+        Discovery-oriented use::
+        
+            help(ProxyParamRef)
+            # then follow the guide/test links listed below
+        
+        Learn more / explore
+        --------------------
+        - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the package.
+        - Guide: ``docs/guides/parameter-key-semantics.md``.
+        - Guide: ``docs/guides/parameter-animation.md``.
+        - Runtime discovery tip: inspect ``fig.parameters``, ``ParamRef.capabilities``, and the slider/animation helpers together to understand the live parameter model.
+        - In a notebook or REPL, run ``help(ProxyParamRef)`` and ``dir(ProxyParamRef)`` to inspect adjacent members.
         """
         return self._require_attr("default_value")
 
     @default_value.setter
     def default_value(self, v: Any) -> None:
         """Set the stored default value if supported.
-
+        
+        Full API
+        --------
+        ``obj.default_value = v``
+        
         Parameters
         ----------
         v : Any
-            New default value.
-
+            Value for ``v`` in this API. Required.
+        
         Returns
         -------
         None
-
+            This call is used for side effects and does not return a value.
+        
+        Optional arguments
+        ------------------
+        This API does not declare optional arguments in its Python signature.
+        
+        Architecture note
+        -----------------
+        This member belongs to ``ProxyParamRef``. Parameter behavior is name-authoritative and flows through ParamRef/ParameterManager abstractions so widgets, hooks, and animation all stay synchronized. Use it through the owning object rather than bypassing the surrounding figure/runtime machinery.
+        
         Examples
         --------
-        >>> import sympy as sp  # doctest: +SKIP
-        >>> from SmartSlider import SmartFloatSlider  # doctest: +SKIP
-        >>> a = sp.symbols("a")  # doctest: +SKIP
-        >>> ref = ProxyParamRef(a, SmartFloatSlider())  # doctest: +SKIP
-        >>> ref.default_value = 2.0  # doctest: +SKIP
+        Basic use::
+        
+            obj = ProxyParamRef(...)
+            obj.default_value = v
+        
+        Discovery-oriented use::
+        
+            help(ProxyParamRef)
+            # then follow the guide/test links listed below
+        
+        Learn more / explore
+        --------------------
+        - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the package.
+        - Guide: ``docs/guides/parameter-key-semantics.md``.
+        - Guide: ``docs/guides/parameter-animation.md``.
+        - Runtime discovery tip: inspect ``fig.parameters``, ``ParamRef.capabilities``, and the slider/animation helpers together to understand the live parameter model.
+        - In a notebook or REPL, run ``help(ProxyParamRef)`` and ``dir(ProxyParamRef)`` to inspect adjacent members.
         """
         if not hasattr(self._widget, "default_value"):
             raise AttributeError("default_value not supported for this control.")
         self._widget.default_value = v
 
-    def observe(self, callback: Callable[[ParamEvent], None], *, fire: bool = False) -> None:
+    def observe(
+        self, callback: Callable[[ParamEvent], None], *, fire: bool = False
+    ) -> None:
         """Register a callback for value changes.
-
+        
+        Full API
+        --------
+        ``obj.observe(callback: Callable[[ParamEvent], None], *, fire: bool=False) -> None``
+        
         Parameters
         ----------
-        callback : callable
-            Function accepting a single :class:`ParamEvent` argument.
+        callback : Callable[[ParamEvent], None]
+            Callable that is invoked when the relevant event fires. Required.
+        
         fire : bool, optional
-            If ``True``, invoke the callback immediately with a synthetic event.
-
+            Boolean flag that requests an immediate callback with the current state. Defaults to ``False``.
+        
         Returns
         -------
         None
-
-        Notes
-        -----
-        Events are normalized into :class:`ParamEvent` regardless of the
-        underlying widget's change payload shape.
-
+            This call is used for side effects and does not return a value.
+        
+        Optional arguments
+        ------------------
+        - ``fire=False``: Boolean flag that requests an immediate callback with the current state.
+        
+        Architecture note
+        -----------------
+        This member belongs to ``ProxyParamRef``. Parameter behavior is name-authoritative and flows through ParamRef/ParameterManager abstractions so widgets, hooks, and animation all stay synchronized. Use it through the owning object rather than bypassing the surrounding figure/runtime machinery.
+        
         Examples
         --------
-        >>> import sympy as sp  # doctest: +SKIP
-        >>> from SmartSlider import SmartFloatSlider  # doctest: +SKIP
-        >>> a = sp.symbols("a")  # doctest: +SKIP
-        >>> ref = ProxyParamRef(a, SmartFloatSlider())  # doctest: +SKIP
-        >>> ref.observe(lambda event: None, fire=False)  # doctest: +SKIP
+        Basic use::
+        
+            obj = ProxyParamRef(...)
+            obj.observe(...)
+        
+        Discovery-oriented use::
+        
+            help(ProxyParamRef)
+            # then follow the guide/test links listed below
+        
+        Learn more / explore
+        --------------------
+        - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the package.
+        - Guide: ``docs/guides/parameter-key-semantics.md``.
+        - Guide: ``docs/guides/parameter-animation.md``.
+        - Runtime discovery tip: inspect ``fig.parameters``, ``ParamRef.capabilities``, and the slider/animation helpers together to understand the live parameter model.
+        - In a notebook or REPL, run ``help(ProxyParamRef)`` and ``dir(ProxyParamRef)`` to inspect adjacent members.
         """
+
         def _handler(change: Any) -> None:
             event = ParamEvent(
                 parameter=self._parameter,
-                old=getattr(change, "old", None) if not isinstance(change, dict) else change.get("old"),
-                new=getattr(change, "new", None) if not isinstance(change, dict) else change.get("new"),
+                old=getattr(change, "old", None)
+                if not isinstance(change, dict)
+                else change.get("old"),
+                new=getattr(change, "new", None)
+                if not isinstance(change, dict)
+                else change.get("new"),
                 ref=self,
                 raw=change,
             )
@@ -367,23 +1204,47 @@ class ProxyParamRef:
 
     def reset(self) -> None:
         """Reset the underlying widget if supported.
-
+        
+        Full API
+        --------
+        ``obj.reset() -> None``
+        
+        Parameters
+        ----------
+        None. This API does not declare user-supplied parameters beyond implicit object context.
+        
         Returns
         -------
         None
-
-        Raises
-        ------
-        AttributeError
-            If the widget does not implement ``reset``.
-
+            This call is used for side effects and does not return a value.
+        
+        Optional arguments
+        ------------------
+        This API does not declare optional arguments in its Python signature.
+        
+        Architecture note
+        -----------------
+        This member belongs to ``ProxyParamRef``. Parameter behavior is name-authoritative and flows through ParamRef/ParameterManager abstractions so widgets, hooks, and animation all stay synchronized. Use it through the owning object rather than bypassing the surrounding figure/runtime machinery.
+        
         Examples
         --------
-        >>> import sympy as sp  # doctest: +SKIP
-        >>> from SmartSlider import SmartFloatSlider  # doctest: +SKIP
-        >>> a = sp.symbols("a")  # doctest: +SKIP
-        >>> ref = ProxyParamRef(a, SmartFloatSlider(value=2.0))  # doctest: +SKIP
-        >>> ref.reset()  # doctest: +SKIP
+        Basic use::
+        
+            obj = ProxyParamRef(...)
+            obj.reset(...)
+        
+        Discovery-oriented use::
+        
+            help(ProxyParamRef)
+            # then follow the guide/test links listed below
+        
+        Learn more / explore
+        --------------------
+        - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the package.
+        - Guide: ``docs/guides/parameter-key-semantics.md``.
+        - Guide: ``docs/guides/parameter-animation.md``.
+        - Runtime discovery tip: inspect ``fig.parameters``, ``ParamRef.capabilities``, and the slider/animation helpers together to understand the live parameter model.
+        - In a notebook or REPL, run ``help(ProxyParamRef)`` and ``dir(ProxyParamRef)`` to inspect adjacent members.
         """
         if hasattr(self._widget, "reset"):
             self._widget.reset()
@@ -410,27 +1271,58 @@ class ProxyParamRef:
     @property
     def capabilities(self) -> Sequence[str]:
         """Return the optional metadata keys supported by this control.
-
+        
+        Full API
+        --------
+        ``obj.capabilities -> Sequence[str]``
+        
+        Parameters
+        ----------
+        None. This API does not declare user-supplied parameters beyond implicit object context.
+        
         Returns
         -------
         Sequence[str]
-            Zero or more of: ``default_value``, ``min``, ``max``, ``step``.
-
+            Result produced by this API.
+        
+        Optional arguments
+        ------------------
+        This API does not declare optional arguments in its Python signature.
+        
+        Architecture note
+        -----------------
+        This member belongs to ``ProxyParamRef``. Parameter behavior is name-authoritative and flows through ParamRef/ParameterManager abstractions so widgets, hooks, and animation all stay synchronized. Use it through the owning object rather than bypassing the surrounding figure/runtime machinery.
+        
         Examples
         --------
-        >>> import sympy as sp  # doctest: +SKIP
-        >>> from SmartSlider import SmartFloatSlider  # doctest: +SKIP
-        >>> a = sp.symbols("a")  # doctest: +SKIP
-        >>> ref = ProxyParamRef(a, SmartFloatSlider())  # doctest: +SKIP
-        >>> "min" in ref.capabilities  # doctest: +SKIP
-        True
-
-        Notes
-        -----
-        This is useful for generic code that supports multiple widget types.
+        Basic use::
+        
+            obj = ProxyParamRef(...)
+            current = obj.capabilities
+        
+        Discovery-oriented use::
+        
+            help(ProxyParamRef)
+            # then follow the guide/test links listed below
+        
+        Learn more / explore
+        --------------------
+        - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the package.
+        - Guide: ``docs/guides/parameter-key-semantics.md``.
+        - Guide: ``docs/guides/parameter-animation.md``.
+        - Runtime discovery tip: inspect ``fig.parameters``, ``ParamRef.capabilities``, and the slider/animation helpers together to understand the live parameter model.
+        - In a notebook or REPL, run ``help(ProxyParamRef)`` and ``dir(ProxyParamRef)`` to inspect adjacent members.
         """
         supported = []
-        for name in ("default_value", "min", "max", "step"):
+        for name in (
+            "default_value",
+            "min",
+            "max",
+            "step",
+            "animation_time",
+            "animation_mode",
+            "animation_running",
+        ):
             if hasattr(self._widget, name):
                 supported.append(name)
         return tuple(supported)
@@ -446,9 +1338,9 @@ class ProxyParamRef:
         Examples
         --------
         >>> import sympy as sp  # doctest: +SKIP
-        >>> from SmartSlider import SmartFloatSlider  # doctest: +SKIP
+        >>> from Slider import FloatSlider  # doctest: +SKIP
         >>> a = sp.symbols("a")  # doctest: +SKIP
-        >>> ref = ProxyParamRef(a, SmartFloatSlider())  # doctest: +SKIP
+        >>> ref = ProxyParamRef(a, FloatSlider())  # doctest: +SKIP
         >>> "min" in dir(ref)  # doctest: +SKIP
         True
         """
@@ -459,9 +1351,20 @@ class ProxyParamRef:
             "observe",
             "reset",
             "capabilities",
+            "start_animation",
+            "stop_animation",
+            "toggle_animation",
         }
         optional = []
-        for name in ("default_value", "min", "max", "step"):
+        for name in (
+            "default_value",
+            "min",
+            "max",
+            "step",
+            "animation_time",
+            "animation_mode",
+            "animation_running",
+        ):
             if hasattr(self._widget, name):
                 optional.append(name)
         base.update(optional)
@@ -470,39 +1373,95 @@ class ProxyParamRef:
     @property
     def min(self) -> Any:
         """Return the minimum value if supported.
-
+        
+        Full API
+        --------
+        ``obj.min -> Any``
+        
+        Parameters
+        ----------
+        None. This API does not declare user-supplied parameters beyond implicit object context.
+        
         Returns
         -------
         Any
-            Minimum value from the widget.
-
+            Result produced by this API.
+        
+        Optional arguments
+        ------------------
+        This API does not declare optional arguments in its Python signature.
+        
+        Architecture note
+        -----------------
+        This member belongs to ``ProxyParamRef``. Parameter behavior is name-authoritative and flows through ParamRef/ParameterManager abstractions so widgets, hooks, and animation all stay synchronized. Use it through the owning object rather than bypassing the surrounding figure/runtime machinery.
+        
         Examples
         --------
-        >>> import sympy as sp  # doctest: +SKIP
-        >>> from SmartSlider import SmartFloatSlider  # doctest: +SKIP
-        >>> a = sp.symbols("a")  # doctest: +SKIP
-        >>> ref = ProxyParamRef(a, SmartFloatSlider(min=-1.0, max=1.0))  # doctest: +SKIP
-        >>> ref.min  # doctest: +SKIP
-        -1.0
+        Basic use::
+        
+            obj = ProxyParamRef(...)
+            current = obj.min
+        
+        Discovery-oriented use::
+        
+            help(ProxyParamRef)
+            # then follow the guide/test links listed below
+        
+        Learn more / explore
+        --------------------
+        - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the package.
+        - Guide: ``docs/guides/parameter-key-semantics.md``.
+        - Guide: ``docs/guides/parameter-animation.md``.
+        - Runtime discovery tip: inspect ``fig.parameters``, ``ParamRef.capabilities``, and the slider/animation helpers together to understand the live parameter model.
+        - In a notebook or REPL, run ``help(ProxyParamRef)`` and ``dir(ProxyParamRef)`` to inspect adjacent members.
         """
         return self._require_attr("min")
 
     @min.setter
     def min(self, value: Any) -> None:
         """Set the minimum value if supported.
-
+        
+        Full API
+        --------
+        ``obj.min = value``
+        
         Parameters
         ----------
         value : Any
-            New minimum value.
-
+            New or current value for the relevant property, control, or calculation. Required.
+        
+        Returns
+        -------
+        None
+            This call is used for side effects and does not return a value.
+        
+        Optional arguments
+        ------------------
+        This API does not declare optional arguments in its Python signature.
+        
+        Architecture note
+        -----------------
+        This member belongs to ``ProxyParamRef``. Parameter behavior is name-authoritative and flows through ParamRef/ParameterManager abstractions so widgets, hooks, and animation all stay synchronized. Use it through the owning object rather than bypassing the surrounding figure/runtime machinery.
+        
         Examples
         --------
-        >>> import sympy as sp  # doctest: +SKIP
-        >>> from SmartSlider import SmartFloatSlider  # doctest: +SKIP
-        >>> a = sp.symbols("a")  # doctest: +SKIP
-        >>> ref = ProxyParamRef(a, SmartFloatSlider())  # doctest: +SKIP
-        >>> ref.min = -2.0  # doctest: +SKIP
+        Basic use::
+        
+            obj = ProxyParamRef(...)
+            obj.min = value
+        
+        Discovery-oriented use::
+        
+            help(ProxyParamRef)
+            # then follow the guide/test links listed below
+        
+        Learn more / explore
+        --------------------
+        - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the package.
+        - Guide: ``docs/guides/parameter-key-semantics.md``.
+        - Guide: ``docs/guides/parameter-animation.md``.
+        - Runtime discovery tip: inspect ``fig.parameters``, ``ParamRef.capabilities``, and the slider/animation helpers together to understand the live parameter model.
+        - In a notebook or REPL, run ``help(ProxyParamRef)`` and ``dir(ProxyParamRef)`` to inspect adjacent members.
         """
         if not hasattr(self._widget, "min"):
             raise AttributeError("min not supported for this control.")
@@ -511,39 +1470,95 @@ class ProxyParamRef:
     @property
     def max(self) -> Any:
         """Return the maximum value if supported.
-
+        
+        Full API
+        --------
+        ``obj.max -> Any``
+        
+        Parameters
+        ----------
+        None. This API does not declare user-supplied parameters beyond implicit object context.
+        
         Returns
         -------
         Any
-            Maximum value from the widget.
-
+            Result produced by this API.
+        
+        Optional arguments
+        ------------------
+        This API does not declare optional arguments in its Python signature.
+        
+        Architecture note
+        -----------------
+        This member belongs to ``ProxyParamRef``. Parameter behavior is name-authoritative and flows through ParamRef/ParameterManager abstractions so widgets, hooks, and animation all stay synchronized. Use it through the owning object rather than bypassing the surrounding figure/runtime machinery.
+        
         Examples
         --------
-        >>> import sympy as sp  # doctest: +SKIP
-        >>> from SmartSlider import SmartFloatSlider  # doctest: +SKIP
-        >>> a = sp.symbols("a")  # doctest: +SKIP
-        >>> ref = ProxyParamRef(a, SmartFloatSlider(min=-1.0, max=1.0))  # doctest: +SKIP
-        >>> ref.max  # doctest: +SKIP
-        1.0
+        Basic use::
+        
+            obj = ProxyParamRef(...)
+            current = obj.max
+        
+        Discovery-oriented use::
+        
+            help(ProxyParamRef)
+            # then follow the guide/test links listed below
+        
+        Learn more / explore
+        --------------------
+        - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the package.
+        - Guide: ``docs/guides/parameter-key-semantics.md``.
+        - Guide: ``docs/guides/parameter-animation.md``.
+        - Runtime discovery tip: inspect ``fig.parameters``, ``ParamRef.capabilities``, and the slider/animation helpers together to understand the live parameter model.
+        - In a notebook or REPL, run ``help(ProxyParamRef)`` and ``dir(ProxyParamRef)`` to inspect adjacent members.
         """
         return self._require_attr("max")
 
     @max.setter
     def max(self, value: Any) -> None:
         """Set the maximum value if supported.
-
+        
+        Full API
+        --------
+        ``obj.max = value``
+        
         Parameters
         ----------
         value : Any
-            New maximum value.
-
+            New or current value for the relevant property, control, or calculation. Required.
+        
+        Returns
+        -------
+        None
+            This call is used for side effects and does not return a value.
+        
+        Optional arguments
+        ------------------
+        This API does not declare optional arguments in its Python signature.
+        
+        Architecture note
+        -----------------
+        This member belongs to ``ProxyParamRef``. Parameter behavior is name-authoritative and flows through ParamRef/ParameterManager abstractions so widgets, hooks, and animation all stay synchronized. Use it through the owning object rather than bypassing the surrounding figure/runtime machinery.
+        
         Examples
         --------
-        >>> import sympy as sp  # doctest: +SKIP
-        >>> from SmartSlider import SmartFloatSlider  # doctest: +SKIP
-        >>> a = sp.symbols("a")  # doctest: +SKIP
-        >>> ref = ProxyParamRef(a, SmartFloatSlider())  # doctest: +SKIP
-        >>> ref.max = 2.0  # doctest: +SKIP
+        Basic use::
+        
+            obj = ProxyParamRef(...)
+            obj.max = value
+        
+        Discovery-oriented use::
+        
+            help(ProxyParamRef)
+            # then follow the guide/test links listed below
+        
+        Learn more / explore
+        --------------------
+        - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the package.
+        - Guide: ``docs/guides/parameter-key-semantics.md``.
+        - Guide: ``docs/guides/parameter-animation.md``.
+        - Runtime discovery tip: inspect ``fig.parameters``, ``ParamRef.capabilities``, and the slider/animation helpers together to understand the live parameter model.
+        - In a notebook or REPL, run ``help(ProxyParamRef)`` and ``dir(ProxyParamRef)`` to inspect adjacent members.
         """
         if not hasattr(self._widget, "max"):
             raise AttributeError("max not supported for this control.")
@@ -552,40 +1567,481 @@ class ProxyParamRef:
     @property
     def step(self) -> Any:
         """Return the step value if supported.
-
+        
+        Full API
+        --------
+        ``obj.step -> Any``
+        
+        Parameters
+        ----------
+        None. This API does not declare user-supplied parameters beyond implicit object context.
+        
         Returns
         -------
         Any
-            Step size from the widget.
-
+            Result produced by this API.
+        
+        Optional arguments
+        ------------------
+        This API does not declare optional arguments in its Python signature.
+        
+        Architecture note
+        -----------------
+        This member belongs to ``ProxyParamRef``. Parameter behavior is name-authoritative and flows through ParamRef/ParameterManager abstractions so widgets, hooks, and animation all stay synchronized. Use it through the owning object rather than bypassing the surrounding figure/runtime machinery.
+        
         Examples
         --------
-        >>> import sympy as sp  # doctest: +SKIP
-        >>> from SmartSlider import SmartFloatSlider  # doctest: +SKIP
-        >>> a = sp.symbols("a")  # doctest: +SKIP
-        >>> ref = ProxyParamRef(a, SmartFloatSlider(step=0.5))  # doctest: +SKIP
-        >>> ref.step  # doctest: +SKIP
-        0.5
+        Basic use::
+        
+            obj = ProxyParamRef(...)
+            current = obj.step
+        
+        Discovery-oriented use::
+        
+            help(ProxyParamRef)
+            # then follow the guide/test links listed below
+        
+        Learn more / explore
+        --------------------
+        - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the package.
+        - Guide: ``docs/guides/parameter-key-semantics.md``.
+        - Guide: ``docs/guides/parameter-animation.md``.
+        - Runtime discovery tip: inspect ``fig.parameters``, ``ParamRef.capabilities``, and the slider/animation helpers together to understand the live parameter model.
+        - In a notebook or REPL, run ``help(ProxyParamRef)`` and ``dir(ProxyParamRef)`` to inspect adjacent members.
         """
         return self._require_attr("step")
 
     @step.setter
     def step(self, value: Any) -> None:
         """Set the step value if supported.
-
+        
+        Full API
+        --------
+        ``obj.step = value``
+        
         Parameters
         ----------
         value : Any
-            New step size.
-
+            New or current value for the relevant property, control, or calculation. Required.
+        
+        Returns
+        -------
+        None
+            This call is used for side effects and does not return a value.
+        
+        Optional arguments
+        ------------------
+        This API does not declare optional arguments in its Python signature.
+        
+        Architecture note
+        -----------------
+        This member belongs to ``ProxyParamRef``. Parameter behavior is name-authoritative and flows through ParamRef/ParameterManager abstractions so widgets, hooks, and animation all stay synchronized. Use it through the owning object rather than bypassing the surrounding figure/runtime machinery.
+        
         Examples
         --------
-        >>> import sympy as sp  # doctest: +SKIP
-        >>> from SmartSlider import SmartFloatSlider  # doctest: +SKIP
-        >>> a = sp.symbols("a")  # doctest: +SKIP
-        >>> ref = ProxyParamRef(a, SmartFloatSlider())  # doctest: +SKIP
-        >>> ref.step = 0.1  # doctest: +SKIP
+        Basic use::
+        
+            obj = ProxyParamRef(...)
+            obj.step = value
+        
+        Discovery-oriented use::
+        
+            help(ProxyParamRef)
+            # then follow the guide/test links listed below
+        
+        Learn more / explore
+        --------------------
+        - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the package.
+        - Guide: ``docs/guides/parameter-key-semantics.md``.
+        - Guide: ``docs/guides/parameter-animation.md``.
+        - Runtime discovery tip: inspect ``fig.parameters``, ``ParamRef.capabilities``, and the slider/animation helpers together to understand the live parameter model.
+        - In a notebook or REPL, run ``help(ProxyParamRef)`` and ``dir(ProxyParamRef)`` to inspect adjacent members.
         """
         if not hasattr(self._widget, "step"):
             raise AttributeError("step not supported for this control.")
         self._widget.step = value
+
+    @property
+    def animation_time(self) -> Any:
+        """Return the animation duration if supported.
+        
+        Full API
+        --------
+        ``obj.animation_time -> Any``
+        
+        Parameters
+        ----------
+        None. This API does not declare user-supplied parameters beyond implicit object context.
+        
+        Returns
+        -------
+        Any
+            Result produced by this API.
+        
+        Optional arguments
+        ------------------
+        This API does not declare optional arguments in its Python signature.
+        
+        Architecture note
+        -----------------
+        This member belongs to ``ProxyParamRef``. Parameter behavior is name-authoritative and flows through ParamRef/ParameterManager abstractions so widgets, hooks, and animation all stay synchronized. Use it through the owning object rather than bypassing the surrounding figure/runtime machinery.
+        
+        Examples
+        --------
+        Basic use::
+        
+            obj = ProxyParamRef(...)
+            current = obj.animation_time
+        
+        Discovery-oriented use::
+        
+            help(ProxyParamRef)
+            # then follow the guide/test links listed below
+        
+        Learn more / explore
+        --------------------
+        - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the package.
+        - Guide: ``docs/guides/parameter-key-semantics.md``.
+        - Guide: ``docs/guides/parameter-animation.md``.
+        - Runtime discovery tip: inspect ``fig.parameters``, ``ParamRef.capabilities``, and the slider/animation helpers together to understand the live parameter model.
+        - In a notebook or REPL, run ``help(ProxyParamRef)`` and ``dir(ProxyParamRef)`` to inspect adjacent members.
+        """
+        return self._require_attr("animation_time")
+
+    @animation_time.setter
+    def animation_time(self, value: Any) -> None:
+        """Set the animation duration if supported.
+        
+        Full API
+        --------
+        ``obj.animation_time = value``
+        
+        Parameters
+        ----------
+        value : Any
+            New or current value for the relevant property, control, or calculation. Required.
+        
+        Returns
+        -------
+        None
+            This call is used for side effects and does not return a value.
+        
+        Optional arguments
+        ------------------
+        This API does not declare optional arguments in its Python signature.
+        
+        Architecture note
+        -----------------
+        This member belongs to ``ProxyParamRef``. Parameter behavior is name-authoritative and flows through ParamRef/ParameterManager abstractions so widgets, hooks, and animation all stay synchronized. Use it through the owning object rather than bypassing the surrounding figure/runtime machinery.
+        
+        Examples
+        --------
+        Basic use::
+        
+            obj = ProxyParamRef(...)
+            obj.animation_time = value
+        
+        Discovery-oriented use::
+        
+            help(ProxyParamRef)
+            # then follow the guide/test links listed below
+        
+        Learn more / explore
+        --------------------
+        - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the package.
+        - Guide: ``docs/guides/parameter-key-semantics.md``.
+        - Guide: ``docs/guides/parameter-animation.md``.
+        - Runtime discovery tip: inspect ``fig.parameters``, ``ParamRef.capabilities``, and the slider/animation helpers together to understand the live parameter model.
+        - In a notebook or REPL, run ``help(ProxyParamRef)`` and ``dir(ProxyParamRef)`` to inspect adjacent members.
+        """
+        if not hasattr(self._widget, "animation_time"):
+            raise AttributeError("animation_time not supported for this control.")
+        self._widget.animation_time = value
+
+    @property
+    def animation_mode(self) -> Any:
+        """Return the animation mode if supported.
+        
+        Full API
+        --------
+        ``obj.animation_mode -> Any``
+        
+        Parameters
+        ----------
+        None. This API does not declare user-supplied parameters beyond implicit object context.
+        
+        Returns
+        -------
+        Any
+            Result produced by this API.
+        
+        Optional arguments
+        ------------------
+        This API does not declare optional arguments in its Python signature.
+        
+        Architecture note
+        -----------------
+        This member belongs to ``ProxyParamRef``. Parameter behavior is name-authoritative and flows through ParamRef/ParameterManager abstractions so widgets, hooks, and animation all stay synchronized. Use it through the owning object rather than bypassing the surrounding figure/runtime machinery.
+        
+        Examples
+        --------
+        Basic use::
+        
+            obj = ProxyParamRef(...)
+            current = obj.animation_mode
+        
+        Discovery-oriented use::
+        
+            help(ProxyParamRef)
+            # then follow the guide/test links listed below
+        
+        Learn more / explore
+        --------------------
+        - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the package.
+        - Guide: ``docs/guides/parameter-key-semantics.md``.
+        - Guide: ``docs/guides/parameter-animation.md``.
+        - Runtime discovery tip: inspect ``fig.parameters``, ``ParamRef.capabilities``, and the slider/animation helpers together to understand the live parameter model.
+        - In a notebook or REPL, run ``help(ProxyParamRef)`` and ``dir(ProxyParamRef)`` to inspect adjacent members.
+        """
+        return self._require_attr("animation_mode")
+
+    @animation_mode.setter
+    def animation_mode(self, value: Any) -> None:
+        """Set the animation mode if supported.
+        
+        Full API
+        --------
+        ``obj.animation_mode = value``
+        
+        Parameters
+        ----------
+        value : Any
+            New or current value for the relevant property, control, or calculation. Required.
+        
+        Returns
+        -------
+        None
+            This call is used for side effects and does not return a value.
+        
+        Optional arguments
+        ------------------
+        This API does not declare optional arguments in its Python signature.
+        
+        Architecture note
+        -----------------
+        This member belongs to ``ProxyParamRef``. Parameter behavior is name-authoritative and flows through ParamRef/ParameterManager abstractions so widgets, hooks, and animation all stay synchronized. Use it through the owning object rather than bypassing the surrounding figure/runtime machinery.
+        
+        Examples
+        --------
+        Basic use::
+        
+            obj = ProxyParamRef(...)
+            obj.animation_mode = value
+        
+        Discovery-oriented use::
+        
+            help(ProxyParamRef)
+            # then follow the guide/test links listed below
+        
+        Learn more / explore
+        --------------------
+        - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the package.
+        - Guide: ``docs/guides/parameter-key-semantics.md``.
+        - Guide: ``docs/guides/parameter-animation.md``.
+        - Runtime discovery tip: inspect ``fig.parameters``, ``ParamRef.capabilities``, and the slider/animation helpers together to understand the live parameter model.
+        - In a notebook or REPL, run ``help(ProxyParamRef)`` and ``dir(ProxyParamRef)`` to inspect adjacent members.
+        """
+        if not hasattr(self._widget, "animation_mode"):
+            raise AttributeError("animation_mode not supported for this control.")
+        self._widget.animation_mode = value
+
+    @property
+    def animation_running(self) -> Any:
+        """Return whether animation is active if supported.
+        
+        Full API
+        --------
+        ``obj.animation_running -> Any``
+        
+        Parameters
+        ----------
+        None. This API does not declare user-supplied parameters beyond implicit object context.
+        
+        Returns
+        -------
+        Any
+            Result produced by this API.
+        
+        Optional arguments
+        ------------------
+        This API does not declare optional arguments in its Python signature.
+        
+        Architecture note
+        -----------------
+        This member belongs to ``ProxyParamRef``. Parameter behavior is name-authoritative and flows through ParamRef/ParameterManager abstractions so widgets, hooks, and animation all stay synchronized. Use it through the owning object rather than bypassing the surrounding figure/runtime machinery.
+        
+        Examples
+        --------
+        Basic use::
+        
+            obj = ProxyParamRef(...)
+            current = obj.animation_running
+        
+        Discovery-oriented use::
+        
+            help(ProxyParamRef)
+            # then follow the guide/test links listed below
+        
+        Learn more / explore
+        --------------------
+        - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the package.
+        - Guide: ``docs/guides/parameter-key-semantics.md``.
+        - Guide: ``docs/guides/parameter-animation.md``.
+        - Runtime discovery tip: inspect ``fig.parameters``, ``ParamRef.capabilities``, and the slider/animation helpers together to understand the live parameter model.
+        - In a notebook or REPL, run ``help(ProxyParamRef)`` and ``dir(ProxyParamRef)`` to inspect adjacent members.
+        """
+        return self._require_attr("animation_running")
+
+    def start_animation(self) -> None:
+        """Start animation if the widget supports it.
+        
+        Full API
+        --------
+        ``obj.start_animation() -> None``
+        
+        Parameters
+        ----------
+        None. This API does not declare user-supplied parameters beyond implicit object context.
+        
+        Returns
+        -------
+        None
+            This call is used for side effects and does not return a value.
+        
+        Optional arguments
+        ------------------
+        This API does not declare optional arguments in its Python signature.
+        
+        Architecture note
+        -----------------
+        This member belongs to ``ProxyParamRef``. Parameter behavior is name-authoritative and flows through ParamRef/ParameterManager abstractions so widgets, hooks, and animation all stay synchronized. Use it through the owning object rather than bypassing the surrounding figure/runtime machinery.
+        
+        Examples
+        --------
+        Basic use::
+        
+            obj = ProxyParamRef(...)
+            obj.start_animation(...)
+        
+        Discovery-oriented use::
+        
+            help(ProxyParamRef)
+            # then follow the guide/test links listed below
+        
+        Learn more / explore
+        --------------------
+        - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the package.
+        - Guide: ``docs/guides/parameter-key-semantics.md``.
+        - Guide: ``docs/guides/parameter-animation.md``.
+        - Runtime discovery tip: inspect ``fig.parameters``, ``ParamRef.capabilities``, and the slider/animation helpers together to understand the live parameter model.
+        - In a notebook or REPL, run ``help(ProxyParamRef)`` and ``dir(ProxyParamRef)`` to inspect adjacent members.
+        """
+        if not hasattr(self._widget, "start_animation"):
+            raise AttributeError("start_animation not supported for this control.")
+        self._widget.start_animation()
+
+    def stop_animation(self) -> None:
+        """Stop animation if the widget supports it.
+        
+        Full API
+        --------
+        ``obj.stop_animation() -> None``
+        
+        Parameters
+        ----------
+        None. This API does not declare user-supplied parameters beyond implicit object context.
+        
+        Returns
+        -------
+        None
+            This call is used for side effects and does not return a value.
+        
+        Optional arguments
+        ------------------
+        This API does not declare optional arguments in its Python signature.
+        
+        Architecture note
+        -----------------
+        This member belongs to ``ProxyParamRef``. Parameter behavior is name-authoritative and flows through ParamRef/ParameterManager abstractions so widgets, hooks, and animation all stay synchronized. Use it through the owning object rather than bypassing the surrounding figure/runtime machinery.
+        
+        Examples
+        --------
+        Basic use::
+        
+            obj = ProxyParamRef(...)
+            obj.stop_animation(...)
+        
+        Discovery-oriented use::
+        
+            help(ProxyParamRef)
+            # then follow the guide/test links listed below
+        
+        Learn more / explore
+        --------------------
+        - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the package.
+        - Guide: ``docs/guides/parameter-key-semantics.md``.
+        - Guide: ``docs/guides/parameter-animation.md``.
+        - Runtime discovery tip: inspect ``fig.parameters``, ``ParamRef.capabilities``, and the slider/animation helpers together to understand the live parameter model.
+        - In a notebook or REPL, run ``help(ProxyParamRef)`` and ``dir(ProxyParamRef)`` to inspect adjacent members.
+        """
+        if not hasattr(self._widget, "stop_animation"):
+            raise AttributeError("stop_animation not supported for this control.")
+        self._widget.stop_animation()
+
+    def toggle_animation(self) -> None:
+        """Toggle animation if the widget supports it.
+        
+        Full API
+        --------
+        ``obj.toggle_animation() -> None``
+        
+        Parameters
+        ----------
+        None. This API does not declare user-supplied parameters beyond implicit object context.
+        
+        Returns
+        -------
+        None
+            This call is used for side effects and does not return a value.
+        
+        Optional arguments
+        ------------------
+        This API does not declare optional arguments in its Python signature.
+        
+        Architecture note
+        -----------------
+        This member belongs to ``ProxyParamRef``. Parameter behavior is name-authoritative and flows through ParamRef/ParameterManager abstractions so widgets, hooks, and animation all stay synchronized. Use it through the owning object rather than bypassing the surrounding figure/runtime machinery.
+        
+        Examples
+        --------
+        Basic use::
+        
+            obj = ProxyParamRef(...)
+            obj.toggle_animation(...)
+        
+        Discovery-oriented use::
+        
+            help(ProxyParamRef)
+            # then follow the guide/test links listed below
+        
+        Learn more / explore
+        --------------------
+        - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the package.
+        - Guide: ``docs/guides/parameter-key-semantics.md``.
+        - Guide: ``docs/guides/parameter-animation.md``.
+        - Runtime discovery tip: inspect ``fig.parameters``, ``ParamRef.capabilities``, and the slider/animation helpers together to understand the live parameter model.
+        - In a notebook or REPL, run ``help(ProxyParamRef)`` and ``dir(ProxyParamRef)`` to inspect adjacent members.
+        """
+        if not hasattr(self._widget, "toggle_animation"):
+            raise AttributeError("toggle_animation not supported for this control.")
+        self._widget.toggle_animation()

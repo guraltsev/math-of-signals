@@ -1,0 +1,168 @@
+/* Legend-specific rows, markers, and context menu styles. */
+
+.gu-legend-context-menu-item,
+.gu-legend-context-menu-item:hover,
+.gu-legend-context-menu-item:focus,
+.gu-legend-context-menu-item:active {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.gu-legend-context-menu :is(input, button):focus-visible {
+  outline: 2px solid var(--jp-brand-color1, #0b76d1) !important;
+  outline-offset: 1px !important;
+}
+
+.gu-legend-context-menu {
+  position: fixed !important;
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 196px;
+  padding: 6px;
+  background: white;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 8px;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.22);
+  z-index: 1001;
+}
+
+.gu-legend-context-menu-item {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  width: 100% !important;
+  padding: 6px 8px !important;
+  border-radius: 6px !important;
+  color: #111827 !important;
+  cursor: pointer !important;
+  text-align: left !important;
+  font: inherit !important;
+}
+
+.gu-legend-context-menu-checkbox input {
+  margin: 0 !important;
+}
+
+.gu-legend-context-menu-item:hover,
+.gu-legend-context-menu-item:focus-visible {
+  background: rgba(15, 23, 42, 0.06) !important;
+}
+
+.gu-legend-empty-state {
+  color: #475569 !important;
+  font-size: 13px !important;
+  line-height: 1.45 !important;
+}
+
+.gu-legend-row {
+  overflow: hidden !important;
+}
+
+.gu-legend-toggle,
+.gu-legend-sound-toggle,
+.gu-legend-edit-button,
+.gu-legend-add-plot-button {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex: 0 0 auto !important;
+}
+
+.gu-legend-toggle,
+.gu-legend-toggle:hover,
+.gu-legend-toggle:focus,
+.gu-legend-toggle:active,
+.gu-legend-toggle :is(button, .widget-button, .jupyter-button),
+.gu-legend-toggle :is(button, .widget-button, .jupyter-button):hover,
+.gu-legend-toggle :is(button, .widget-button, .jupyter-button):focus,
+.gu-legend-toggle :is(button, .widget-button, .jupyter-button):active,
+.gu-legend-toggle:is(button, .widget-button, .jupyter-button),
+.gu-legend-toggle:is(button, .widget-button, .jupyter-button):hover,
+.gu-legend-toggle:is(button, .widget-button, .jupyter-button):focus,
+.gu-legend-toggle:is(button, .widget-button, .jupyter-button):active {
+  position: relative !important;
+  overflow: hidden !important;
+  border-radius: 999px !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+  color: var(--gu-legend-marker-color, currentColor) !important;
+  font-size: 0 !important;
+  line-height: 0 !important;
+  padding: 0 !important;
+  min-width: 0 !important;
+  cursor: pointer !important;
+}
+
+.gu-legend-toggle::before,
+.gu-legend-toggle:is(button, .widget-button, .jupyter-button)::before,
+.gu-legend-toggle :is(button, .widget-button, .jupyter-button)::before {
+  content: "";
+  display: inline-flex !important;
+  width: var(--gu-legend-marker-diameter) !important;
+  height: var(--gu-legend-marker-diameter) !important;
+  border-radius: 999px !important;
+  border: 2px solid var(--gu-legend-marker-color, currentColor) !important;
+  background: var(--gu-legend-marker-color, currentColor) !important;
+  box-sizing: border-box !important;
+}
+
+.gu-legend-toggle::after,
+.gu-legend-toggle:is(button, .widget-button, .jupyter-button)::after,
+.gu-legend-toggle :is(button, .widget-button, .jupyter-button)::after {
+  content: none !important;
+}
+
+.gu-legend-toggle:hover,
+.gu-legend-toggle:is(button, .widget-button, .jupyter-button):hover,
+.gu-legend-toggle :is(button, .widget-button, .jupyter-button):hover {
+  background-color: rgba(15, 23, 42, 0.06) !important;
+}
+
+.gu-legend-toggle:focus-visible,
+.gu-legend-toggle:is(button, .widget-button, .jupyter-button):focus-visible,
+.gu-legend-toggle :is(button, .widget-button, .jupyter-button):focus-visible {
+  background-color: rgba(15, 23, 42, 0.06) !important;
+  box-shadow: var(--gu-focus-ring) !important;
+}
+
+.gu-legend-toggle.mod-hidden::before,
+.gu-legend-toggle.mod-hidden:is(button, .widget-button, .jupyter-button)::before,
+.gu-legend-toggle.mod-hidden :is(button, .widget-button, .jupyter-button)::before {
+  background: transparent !important;
+  opacity: 0.78 !important;
+}
+
+.gu-legend-toggle.mod-hidden::after,
+.gu-legend-toggle.mod-hidden:is(button, .widget-button, .jupyter-button)::after,
+.gu-legend-toggle.mod-hidden :is(button, .widget-button, .jupyter-button)::after {
+  content: "" !important;
+  position: absolute !important;
+  left: 50% !important;
+  top: 50% !important;
+  width: calc(var(--gu-legend-marker-diameter) + 4px) !important;
+  height: 2px !important;
+  border-radius: 999px !important;
+  background: var(--gu-legend-marker-color, currentColor) !important;
+  transform: translate(-50%, -50%) rotate(-40deg) !important;
+}
+
+.gu-legend-sound-toggle::before {
+  font-size: 15px !important;
+}
+
+.gu-legend-sound-toggle.mod-muted::before {
+  content: "🔇";
+}
+
+.gu-legend-sound-toggle.mod-playing::before {
+  content: "🔊";
+}

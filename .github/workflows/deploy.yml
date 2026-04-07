@@ -56,6 +56,8 @@ jobs:
 
       - name: Build the JupyterLite site
         run: |
+          pwd
+          ls -R extensions || true
           jupyter lite build
 
       - name: Build the bundled Pyodide distribution

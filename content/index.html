@@ -1,0 +1,566 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Math of Signals</title>
+    <meta
+      name="description"
+      content="Math of Signals: a lightweight landing page for the JupyterLite/Pyodide notebooks and bundled audio files."
+    />
+    <style>
+	:root {
+  color-scheme: light;
+  --bg: #0b1020;
+  --panel: #ffffff;
+  --panel-muted: #f4f7fb;
+  --border: #d7e0ee;
+  --text: #15213a;
+  --text-soft: #4d5e7d;
+  --accent: #2b63f6;
+  --accent-strong: #163fb0;
+  --shadow: 0 18px 48px rgba(15, 31, 64, 0.12);
+  --radius: 18px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(circle at top left, rgba(90, 141, 255, 0.35), transparent 28%),
+    linear-gradient(180deg, #f6f9ff 0%, #eef3fb 100%);
+}
+
+.hero {
+  background:
+    linear-gradient(135deg, rgba(8, 18, 48, 0.95), rgba(16, 47, 125, 0.92)),
+    radial-gradient(circle at top right, rgba(127, 177, 255, 0.28), transparent 30%);
+  color: white;
+  padding: 4rem 1.5rem 3rem;
+}
+
+.hero__inner,
+.page {
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
+.eyebrow,
+.section__eyebrow {
+  margin: 0 0 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.hero h1 {
+  margin: 0;
+  font-size: clamp(2.1rem, 4vw, 3.8rem);
+  line-height: 1.05;
+}
+
+.lead {
+  max-width: 700px;
+  font-size: 1.1rem;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.88);
+  margin: 1rem 0 0;
+}
+
+.hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  margin-top: 1.75rem;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  padding: 0.7rem 1.1rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  text-decoration: none;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.08);
+  transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.button:hover,
+.button:focus-visible,
+.card__link:hover,
+.card__link:focus-visible,
+.audio-card__header a:hover,
+.audio-card__header a:focus-visible,
+td a:hover,
+td a:focus-visible {
+  transform: translateY(-1px);
+}
+
+.button--primary {
+  background: white;
+  border-color: white;
+  color: var(--accent-strong);
+}
+
+.page {
+  padding: 0 1.5rem 4rem;
+}
+
+.section {
+  margin-top: 2rem;
+}
+
+.section__heading {
+  padding: 2rem 0 1.2rem;
+}
+
+.section__heading h2,
+.callout h3 {
+  margin: 0;
+  font-size: clamp(1.6rem, 2.3vw, 2.1rem);
+}
+
+.section__heading p,
+.callout p,
+.card p,
+.audio-card {
+  line-height: 1.7;
+}
+
+.section__heading p {
+  max-width: 760px;
+  margin: 0.65rem 0 0;
+  color: var(--text-soft);
+}
+
+code,
+pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+
+code {
+  background: rgba(27, 59, 140, 0.08);
+  border-radius: 0.4rem;
+  padding: 0.16rem 0.38rem;
+}
+
+pre {
+  margin: 0.9rem 0;
+  padding: 1rem 1.1rem;
+  overflow-x: auto;
+  border-radius: 14px;
+  background: #0f1730;
+  color: #eff4ff;
+}
+
+pre code {
+  background: transparent;
+  padding: 0;
+  color: inherit;
+}
+
+.card-grid,
+.audio-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.card-grid {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.audio-grid {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.card,
+.audio-card,
+.callout {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.card__body,
+.audio-card,
+.callout {
+  padding: 1.25rem;
+}
+
+.card h3,
+.audio-card h3 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.card p,
+.audio-card p {
+  margin: 0.75rem 0 0;
+  color: var(--text-soft);
+}
+
+.filename {
+  margin-top: 0.95rem;
+  color: var(--accent-strong);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 0.94rem;
+}
+
+.card__link {
+  display: block;
+  margin: 0 1.25rem 1.25rem;
+  padding: 0.9rem 1rem;
+  border-radius: 14px;
+  text-align: center;
+  text-decoration: none;
+  font-weight: 700;
+  color: var(--accent-strong);
+  background: rgba(43, 99, 246, 0.08);
+}
+
+.audio-card__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.audio-card__header a,
+td a {
+  color: var(--accent-strong);
+  text-decoration: none;
+  font-weight: 700;
+}
+
+audio {
+  width: 100%;
+  margin-top: 1rem;
+}
+
+.meta-list {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0 0;
+  border-top: 1px solid var(--border);
+}
+
+.meta-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.meta-list span {
+  color: var(--text-soft);
+}
+
+.callout {
+  margin-top: 1rem;
+}
+
+.callout--subtle {
+  background: var(--panel-muted);
+}
+
+.note {
+  color: var(--text-soft);
+}
+
+.table-wrap {
+  overflow-x: auto;
+  margin-top: 1rem;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 0.85rem 0.9rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+th {
+  font-size: 0.92rem;
+  color: var(--text-soft);
+  font-weight: 700;
+}
+
+@media (max-width: 720px) {
+  .hero {
+    padding-top: 3rem;
+  }
+
+  .page {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .audio-card__header,
+  .meta-list li {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+	</style>
+  </head>
+  <body>
+    <header class="hero">
+      <div class="hero__inner">
+        <p class="eyebrow">Math of Signals</p>
+        <h1>Interactive Fourier notebooks in the browser</h1>
+        <p class="lead">
+          Open the JupyterLite notebooks directly in single-document mode, then compare the bundled
+          audio files used in the signal examples.
+        </p>
+        <div class="hero__actions">
+          <a class="button button--primary" href="./lab/index.html">Open JupyterLite</a>
+          <a class="button" href="#notebooks">Browse notebooks</a>
+          <a class="button" href="#audio-files">Compare audio files</a>
+        </div>
+      </div>
+    </header>
+
+    <main class="page">
+      <section id="notebooks" class="section">
+        <div class="section__heading">
+          <p class="section__eyebrow">Notebook links</p>
+          <h2>Launch a notebook directly</h2>
+          <p>
+            Each link below opens the notebook with the JupyterLite single-document URL pattern
+            <code>lab/index.html?path=XXXX.ipynb&amp;mode=single-document</code>.
+          </p>
+        </div>
+
+        <div class="card-grid">
+          <article class="card">
+            <div class="card__body">
+              <h3>Some functions and how they sound</h3>
+              <p>
+                Compare sine, triangle, square, and composite waveforms while connecting their shapes
+                to the sounds they produce.
+              </p>
+              <p class="filename">How_functions_sound.ipynb</p>
+            </div>
+            <a class="card__link" href="./lab/index.html?path=How_functions_sound.ipynb&amp;mode=single-document">
+              Open notebook
+            </a>
+          </article>
+
+          <article class="card">
+            <div class="card__body">
+              <h3>How to find those trig functions</h3>
+              <p>
+                Explore products of sine waves and see how different frequencies interact on the unit interval.
+              </p>
+              <p class="filename">How_to_find_those_trig_functions.ipynb</p>
+            </div>
+            <a
+              class="card__link"
+              href="./lab/index.html?path=How_to_find_those_trig_functions.ipynb&amp;mode=single-document"
+            >
+              Open notebook
+            </a>
+          </article>
+
+          <article class="card">
+            <div class="card__body">
+              <h3>A function as a sum of sines</h3>
+              <p>
+                Match a mystery function with a trig expansion by adjusting the sine-mode coefficients.
+              </p>
+              <p class="filename">Is_F_sum_of_trig.ipynb</p>
+            </div>
+            <a class="card__link" href="./lab/index.html?path=Is_F_sum_of_trig.ipynb&amp;mode=single-document">
+              Open notebook
+            </a>
+          </article>
+
+          <article class="card">
+            <div class="card__body">
+              <h3>Is a square wave a sum of trig functions?</h3>
+              <p>
+                Approximate a square wave with a finite trig sum and see how the Fourier-style fit improves.
+              </p>
+              <p class="filename">Is_Square_sum_of_trig.ipynb</p>
+            </div>
+            <a
+              class="card__link"
+              href="./lab/index.html?path=Is_Square_sum_of_trig.ipynb&amp;mode=single-document"
+            >
+              Open notebook
+            </a>
+          </article>
+
+          <article class="card">
+            <div class="card__body">
+              <h3>What we discovered</h3>
+              <p>
+                Review the orthogonality relations and the coefficient formulas that make Fourier expansions work.
+              </p>
+              <p class="filename">The_Fourier_coefficients.ipynb</p>
+            </div>
+            <a
+              class="card__link"
+              href="./lab/index.html?path=The_Fourier_coefficients.ipynb&amp;mode=single-document"
+            >
+              Open notebook
+            </a>
+          </article>
+        </div>
+      </section>
+
+      <section id="audio-files" class="section">
+        <div class="section__heading">
+          <p class="section__eyebrow">Audio files</p>
+          <h2>Bundled reference audio</h2>
+          <p>
+            These files are available directly from the static site. The original and low-bitrate files are MP3s;
+            the low-sample version is a WAV file.
+          </p>
+        </div>
+
+        <div class="audio-grid">
+          <article class="audio-card">
+            <div class="audio-card__header">
+              <h3>Uark-fight.mp3</h3>
+              <a href="./files/Uark-fight.mp3" download>Download</a>
+            </div>
+            <audio controls preload="none">
+              <source src="./files/Uark-fight.mp3" type="audio/mpeg" />
+              Your browser does not support embedded audio playback.
+            </audio>
+            <ul class="meta-list">
+              <li><span>Format</span><strong>MP3</strong></li>
+              <li><span>Encoding</span><strong>44.1 kHz stereo, 192 kb/s</strong></li>
+              <li><span>Duration</span><strong>00:01:24.27</strong></li>
+              <li><span>File size</span><strong>2,023,268 bytes (1.93 MiB)</strong></li>
+            </ul>
+          </article>
+
+          <article class="audio-card">
+            <div class="audio-card__header">
+              <h3>Uark-fight-32.mp3</h3>
+              <a href="./files/Uark-fight-32.mp3" download>Download</a>
+            </div>
+            <audio controls preload="none">
+              <source src="./files/Uark-fight-32.mp3" type="audio/mpeg" />
+              Your browser does not support embedded audio playback.
+            </audio>
+            <ul class="meta-list">
+              <li><span>Format</span><strong>MP3</strong></li>
+              <li><span>Encoding</span><strong>44.1 kHz stereo, 32 kb/s</strong></li>
+              <li><span>Duration</span><strong>00:01:24.27</strong></li>
+              <li><span>File size</span><strong>337,430 bytes (0.32 MiB)</strong></li>
+            </ul>
+          </article>
+
+          <article class="audio-card">
+            <div class="audio-card__header">
+              <h3>uark-fight-low-sample.wav</h3>
+              <a href="./files/uark-fight-low-sample.wav" download>Download</a>
+            </div>
+            <audio controls preload="none">
+              <source src="./files/uark-fight-low-sample.wav" type="audio/wav" />
+              Your browser does not support embedded audio playback.
+            </audio>
+            <ul class="meta-list">
+              <li><span>Format</span><strong>WAV</strong></li>
+              <li><span>Encoding</span><strong>8 kHz mono PCM, 128 kb/s</strong></li>
+              <li><span>Duration</span><strong>00:01:24.24</strong></li>
+              <li><span>File size</span><strong>1,347,950 bytes (1.29 MiB)</strong></li>
+            </ul>
+          </article>
+        </div>
+
+        <div class="callout">
+          <h3>File size comparison</h3>
+          <p>
+            The 32 kb/s MP3 is about <strong>83.3%</strong> smaller than the original 192 kb/s MP3.
+            The low-sample WAV is about <strong>33.4%</strong> smaller than the original MP3, but still
+            about <strong>4.0×</strong> larger than the 32 kb/s MP3.
+          </p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>File</th>
+                  <th>Format</th>
+                  <th>Duration</th>
+                  <th>Encoding</th>
+                  <th>Size</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><a href="./files/Uark-fight.mp3">Uark-fight.mp3</a></td>
+                  <td>MP3</td>
+                  <td>00:01:24.27</td>
+                  <td>44.1 kHz stereo, 192 kb/s</td>
+                  <td>2,023,268 bytes</td>
+                </tr>
+                <tr>
+                  <td><a href="./files/Uark-fight-32.mp3">Uark-fight-32.mp3</a></td>
+                  <td>MP3</td>
+                  <td>00:01:24.27</td>
+                  <td>44.1 kHz stereo, 32 kb/s</td>
+                  <td>337,430 bytes</td>
+                </tr>
+                <tr>
+                  <td><a href="./files/uark-fight-low-sample.wav">uark-fight-low-sample.wav</a></td>
+                  <td>WAV</td>
+                  <td>00:01:24.24</td>
+                  <td>8 kHz mono PCM, 128 kb/s</td>
+                  <td>1,347,950 bytes</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="callout callout--subtle">
+          <h3>Low-sample WAV conversion note</h3>
+          <p>
+            The repo includes this ffmpeg command for making the low-sample WAV:
+          </p>
+          <pre><code>ffmpeg -i Uark-fight.mp3 -ac 1 -ar 8000 -af "aresample=osf=u8:dither_method=none" uark-fight-low-sample.wav</code></pre>
+          <p>
+            Conversion log note: <code>size=1316kB time=00:01:24.24 bitrate=128.0kbits/s speed=721x</code>.
+          </p>
+          <p class="note">
+            The command requests unsigned 8-bit output samples with <code>osf=u8</code>. The checked-in WAV file
+            currently reports as 8 kHz mono PCM at 128 kb/s when inspected, which corresponds to 16-bit PCM metadata.
+          </p>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

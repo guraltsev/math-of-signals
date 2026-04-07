@@ -1,90 +1,41 @@
-# Cookies Fourier
+This is a collection of JupyterLab notebooks for exploring Fourier analysis
 
-This repository deploys a JupyterLite site for exploratory Fourier-analysis notebooks.
 
-The site is configured so that every new **Python (Pyodide)** notebook starts with these packages available without a setup cell:
+# Activities
 
-- `numpy`
-- `pandas`
-- `scipy`
-- `sympy`
-- `plotly`
-- `anywidget`
-- `ipywidgets`
+- [Compare sine, triangle, square, and composite waveforms while connecting their shapes to the sounds they produce.](https://guraltsev.github.io/math-of-signals/lab/index.html?path=How_functions_sound.ipynb&mode=single-document)
+- [Match a mystery function with a trig expansion by adjusting the sine coefficients.](/lab/index.html?path=Is_F_sum_of_trig.ipynb&mode=single-document)
+- [Approximate a square wave with a finite trig sum.](/lab/index.html?path=Is_Square_sum_of_trig.ipynb&mode=single-document)
+- [Explore products of sine waves and see how different frequencies interact on the unit interval.
+](/lab/index.html?path=How_to_find_those_trig_functions.ipynb&mode=single-document)
+- [Review the relations that make Fourier expansions work.
+](/lab/index.html?path=The_Fourier_coefficients.ipynb&mode=single-document)
 
-`ipywidgets` is bundled because the local `gu_toolkit` helpers import it directly.
+# Sounds
 
-Extra packages can still be installed from inside a notebook with `%pip install ...`.
 
-## What changed in this repo
+The UArk Fight song
+- Format: MP3
+- Encoding: 44.1 kHz stereo, 192 kb/s
+- Duration: 00:01:24.27
+- File size: 2,023,268 bytes
+[Uark-fight.mp3](/lab/index.html?path=Uark-fight.mp3&mode=single-document)
 
-- JupyterLite build settings now live in `jupyter_lite_config.json` and `jupyter-lite.json`.
-- GitHub Actions now builds **two things in one deployment**:
-  1. the JupyterLite site itself
-  2. a modified, self-hosted Pyodide distribution under `dist/pyodide`
-- The deployed JupyterLite runtime is patched to point at that bundled Pyodide distribution.
-- The custom Pyodide builder now reuses packages already present in the upstream Pyodide lockfile instead of replacing them with redundant downloaded wheels.
-- The Fourier notebooks no longer tell users to run `%pip install ...` before getting started.
+The UArk Fight song (very compressed)
+- Format: MP3
+- Encoding: 44.1 kHz stereo, 32 kb/s
+- Duration: 00:01:24.27
+- File size: 337,430 bytes
+[Uark-fight-32.mp3](/lab/index.html?path=Uark-fight-32.mp3&mode=single-document)
 
-## Repo layout
+The UArk Fight song (downsampled)
+- Format: WAV
+- Encoding: 8 kHz mono PCM, 128 kb/s
+- Duration: 00:01:24.27
+- File size: 1,347,950 bytes
+[uark-fight-low-sample.wav](/lab/index.html?path=uark-fight-low-sample.wav&mode=single-document)
 
-- `content/` - notebooks, helpers, and other files bundled into the JupyterLite site
-- `jupyter_lite_config.json` - build-time JupyterLite settings
-- `jupyter-lite.json` - runtime JupyterLite settings, including the default Pyodide package preload list
-- `pyodide-extra-requirements.txt` - extra pure-Python wheels that get merged into the deployed Pyodide lockfile
-- `scripts/build_custom_pyodide.py` - downloads the official Pyodide release, adds the extra wheels, and writes `dist/pyodide`
-- `scripts/patch_runtime_config.py` - rewrites the built runtime config so `pyodideUrl` matches the final GitHub Pages URL
-- `.github/workflows/deploy.yml` - builds and deploys the complete site to GitHub Pages
+# Visual compression
 
-## Deploy on GitHub
-
-1. Create a GitHub repository and upload this repo as-is.
-2. Make sure the default branch is `main`.
-3. Open **Settings -> Pages**.
-4. Under **Build and deployment**, set **Source** to **GitHub Actions**.
-5. Push to `main`, or open the **Actions** tab and run **Build and Deploy** manually.
-6. Wait for the workflow to finish successfully.
-7. Open the deployed site:
-   - project site: `https://<owner>.github.io/<repo>/lab/`
-   - user or organization site (repo named `<owner>.github.io`): `https://<owner>.github.io/lab/`
-
-Once deployed, the JupyterLab launcher and notebooks will use the bundled Pyodide runtime automatically.
-
-## Open the activities
-
-After deployment, these URLs open the four notebooks in single-document mode:
-
-- `https://<owner>.github.io/<repo>/lab/index.html?path=Fourier_01.ipynb&mode=single-document`
-- `https://<owner>.github.io/<repo>/lab/index.html?path=Fourier_02.ipynb&mode=single-document`
-- `https://<owner>.github.io/<repo>/lab/index.html?path=Fourier_03.ipynb&mode=single-document`
-- `https://<owner>.github.io/<repo>/lab/index.html?path=Fourier_04.ipynb&mode=single-document`
-
-For a user or organization site repository named `<owner>.github.io`, remove `/<repo>` from those URLs.
-
-## Activity behavior
-
-The deployed site is configured so each notebook opens as a standalone activity:
-
-- direct `?path=...&mode=single-document` URLs instead of workspace URLs
-- file browser and launcher disabled at runtime
-- in-memory contents and settings storage so reloads start fresh
-- service worker left enabled for stable filesystem imports
-- tagged notebook setup cells run automatically via the custom autorun frontend extension
-
-## Change the default package set
-
-There are two places to edit if you want to change what is ready at notebook startup:
-
-1. `pyodide-extra-requirements.txt`
-   - add or remove extra pure-Python wheels that should be bundled into the deployed Pyodide distribution
-2. `jupyter-lite.json`
-   - update `loadPyodideOptions.packages` so the kernel preloads the packages you want available immediately
-
-If you add packages that are not pure-Python wheels, this repo's current workflow is not enough by itself; those packages usually need a real Pyodide package build.
-
-## Notes
-
-- The deployment workflow uses Python 3.13 because the pinned JupyterLite Pyodide kernel line targets Pyodide 0.29.x.
-- The custom Pyodide builder asks `pip download` for `--platform any --implementation py --abi none --python-version 3.13` so packages like `psygnal` resolve to universal `py3-none-any` wheels instead of host-specific Linux wheels.
-- The Pyodide assets are created during the GitHub Action run and are **not** committed into git.
-- The site remains static and GitHub Pages-friendly: no server process is required.
+ [How to use ideas from sound encoding for image encoding - Basics of JPEG
+](/lab/index.html?path=Image_Fourier_Approximations.ipynb&mode=single-document)

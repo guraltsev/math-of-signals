@@ -49,8 +49,6 @@ jobs:
           npm install
           npm run build
           python -m jupyter labextension build .
-          mkdir -p extensions/@math-of-signals
-          cp -r autorun-extension/* extensions/@math-of-signals/autorun
           echo "=== AFTER EXTENSION BUILD ==="
           pwd
           ls -R ../extensions || true

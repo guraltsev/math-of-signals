@@ -266,10 +266,9 @@ PLOT_STYLE_OPTIONS: tuple[PlotStyleSpec, ...] = (
         type_doc="bool | None",
         default_doc="False / disabled",
         description=(
-            "Per-plot sound setting. When enabled, figure-linked playback uses"
-            " bounded streaming auto-normalization with local DC removal and"
-            " attenuation-only gain control instead of strict [-1, 1]"
-            " validation"
+            "Per-plot sound setting. When enabled, playback automatically"
+            " scales chunks whose absolute peak exceeds 1.0 back into"
+            " [-1, 1] instead of raising an error"
         ),
     ),
 )

@@ -19,7 +19,6 @@ from sympy.core.symbol import Symbol
 from .ParameterSnapshot import ParameterSnapshot, ParameterValueSnapshot
 from .ParamEvent import ParamEvent
 from .ParamRef import ParamRef
-from .identifiers import render_latex
 from .Slider import FloatSlider
 from .performance_monitor import PerformanceMonitor, format_performance_snapshot
 from .parameter_keys import (
@@ -341,7 +340,7 @@ class ParameterManager(Mapping[str, ParamRef]):
             for name, symbol in missing:
                 config = {**defaults, **control_kwargs}
                 new_control = FloatSlider(
-                    description=f"${render_latex(symbol)}$",
+                    description=f"${sp.latex(symbol)}$",
                     accessibility_label=f"Parameter {symbol.name}",
                     value=float(config["value"]),
                     min=float(config["min"]),

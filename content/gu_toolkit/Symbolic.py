@@ -28,15 +28,6 @@ from typing import Any
 
 import sympy as sp
 
-from .identifiers import (
-    function_head_to_latex,
-    function_latex_method,
-    identifier_to_latex,
-    semantic_function,
-    symbol,
-    validate_identifier,
-)
-
 
 def _create_family(factory, source, **kwargs):
     """Create family objects while preserving SymPy's output shape."""
@@ -49,53 +40,91 @@ def _create_family(factory, source, **kwargs):
     return factory(str(source), **kwargs)
 
 
-def _canonicalize_index_component(value: Any) -> str:
-    """Return one canonical identifier atom for an indexed family lookup."""
+def _escape_latex_text(text: str) -> str:
+    """Escape plain text for safe use inside ``\text{...}``."""
+
+    replacements = {
+        "\\": r"\textbackslash{}",
+        "{": r"\{",
+        "}": r"\}",
+        "$": r"\$",
+        "&": r"\&",
+        "%": r"\%",
+        "#": r"\#",
+        "_": r"\_",
+        "^": r"\textasciicircum{}",
+        "~": r"\textasciitilde{}",
+    }
+    return "".join(replacements.get(ch, ch) for ch in text)
+
+
+def _normalize_symbol_name(name: Any) -> str:
+    """Return the canonical LaTeX-oriented SymPy name for a symbol base."""
+
+    text = str(name)
+    if not text:
+        return text
+    return sp.latex(sp.Symbol(text))
+
+
+def _normalize_function_name(name: Any) -> str:
+    """Return the canonical LaTeX-oriented SymPy name for a function base.
+
+    Rules
+    -----
+    - User-supplied ``\\operatorname{...}`` is preserved exactly.
+    - Existing explicit LaTeX names (for example ``\alpha``) are preserved.
+    - Greek letter names are converted to their LaTeX macro forms.
+    - One-letter plain names remain plain.
+    - Other multi-letter plain names are wrapped in ``\\operatorname{...}``.
+    """
+
+    text = str(name)
+    if not text:
+        return text
+
+    if "\\operatorname{" in text:
+        return text
+
+    if "\\" in text or "{" in text or "}" in text:
+        return text
+
+    latexified = _normalize_symbol_name(text)
+    if latexified != text:
+        return latexified
+
+    if len(text) == 1:
+        return text
+
+    return rf"\operatorname{{{text}}}"
+
+
+def _format_index_component(value: Any) -> str:
+    """Render one index component as a LaTeX subscript fragment."""
 
     if isinstance(value, sp.Integer):
         return str(int(value))
     if isinstance(value, Integral) and not isinstance(value, bool):
         return str(int(value))
     if isinstance(value, str):
-        text = str(value).strip()
-        if not text:
-            raise ValueError("Index components may not be empty.")
-        if text.isdigit():
-            return text
-        if not text.replace("_", "").isalnum():
-            raise ValueError(
-                f"String index components may only contain letters, digits, and underscores, got {text!r}."
-            )
-        return text
-    if isinstance(value, sp.Symbol):
-        return str(value.name)
+        return rf"\text{{{_escape_latex_text(value)}}}"
     if isinstance(value, sp.Basic):
-        return str(sp.sstr(value))
+        return sp.latex(value)
     return str(value)
 
 
 def _build_indexed_name(base_name: str, indices: tuple[Any, ...]) -> str:
-    """Combine one canonical base name with canonical subscript atoms."""
+    """Combine a base LaTeX name with one or more indexed components."""
 
-    pieces = [base_name]
-    for item in indices:
-        atom = _canonicalize_index_component(item)
-        pieces.append(atom.replace("_", "__"))
-    return "_".join(pieces)
+    rendered = ",".join(_format_index_component(value) for value in indices)
+    return f"{base_name}_{{{rendered}}}"
 
-def _make_semantic_function(name: str, **kwargs: Any) -> type[sp.Function]:
-    """Create one undefined SymPy function class with semantic LaTeX metadata."""
 
-    canonical = validate_identifier(str(name), role="function")
-    return sp.Function(
-        canonical,
-        __dict__={
-            "__gu_name__": canonical,
-            "__gu_latex__": function_head_to_latex(canonical),
-            "_latex": function_latex_method,
-        },
-        **kwargs,
-    )
+def _latex_function_application(self, printer) -> str:
+    """Render applied undefined functions without ``\\left``/``\\right``."""
+
+    args = ", ".join(printer._print(arg) for arg in self.args)
+    return f"{self.func.__name__}({args})"
 
 
 def symbols(names, *, cls=sp.Symbol, **args) -> Any:
@@ -215,8 +244,8 @@ class SymbolFamily(sp.Symbol):
     def __new__(cls, name, **kwargs):
         """Create the family root symbol and initialize child caches."""
 
-        canonical_name = validate_identifier(str(name), role="symbol")
-        obj = super().__new__(cls, canonical_name, **kwargs)
+        latex_name = _normalize_symbol_name(name)
+        obj = super().__new__(cls, latex_name, **kwargs)
         obj._family_cache = {}
         obj._family_kwargs = kwargs
         return obj
@@ -298,9 +327,13 @@ class FunctionFamily:
     def __init__(self, name, **kwargs):
         """Initialize the base function and index cache."""
 
-        self.name = validate_identifier(str(name), role="function")
+        self.name = _normalize_function_name(name)
         self._kwargs = kwargs
-        self._base = _make_semantic_function(self.name, **kwargs)
+        self._base = sp.Function(
+            self.name,
+            __dict__={"_latex": _latex_function_application},
+            **kwargs,
+        )
         self._cache = {}
 
     def __getitem__(self, k):
@@ -321,7 +354,11 @@ class FunctionFamily:
             k = (k,)
         if k not in self._cache:
             indexed_name = _build_indexed_name(self.name, k)
-            self._cache[k] = _make_semantic_function(indexed_name, **self._kwargs)
+            self._cache[k] = sp.Function(
+                indexed_name,
+                __dict__={"_latex": _latex_function_application},
+                **self._kwargs,
+            )
         return self._cache[k]
 
     def __call__(self, *args):
@@ -434,7 +471,6 @@ ge = Infix(sp.Ge)
 
 
 __all__ = [
-    "symbol",
     "symbols",
     "SymbolFamily",
     "FunctionFamily",

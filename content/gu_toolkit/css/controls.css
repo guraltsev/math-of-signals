@@ -27,8 +27,8 @@
 /* Ipywidgets Box helpers default to overflow:auto. Shared single-line control
    shells opt out so tiny cross-axis size mismatches do not surface stray
    scrollbars around native inputs such as dropdowns or color pickers. */
-:is(.gu-control-text, .gu-control-numeric, .gu-control-dropdown, .gu-control-color),
-:is(.gu-control-text, .gu-control-numeric, .gu-control-dropdown, .gu-control-color) > * {
+:is(.gu-control-text, .gu-control-numeric, .gu-control-dropdown, .gu-control-color, .gu-control-math),
+:is(.gu-control-text, .gu-control-numeric, .gu-control-dropdown, .gu-control-color, .gu-control-math) > * {
   box-sizing: border-box !important;
   min-width: 0 !important;
   max-width: 100% !important;
@@ -42,6 +42,7 @@
 .gu-control-dropdown select:not([multiple]),
 .gu-control-multiselect select[multiple],
 .gu-control-targets select[multiple],
+.gu-control-math :is(textarea, math-field),
 .gu-readonly-value {
   box-sizing: border-box !important;
   width: 100% !important;
@@ -58,15 +59,25 @@
 .gu-control-text :is(input:not([type="checkbox"]):not([type="radio"]), textarea),
 .gu-control-numeric :is(input, textarea),
 .gu-control-color input[type="text"],
-.gu-control-dropdown select:not([multiple]) {
+.gu-control-dropdown select:not([multiple]),
+.gu-control-math :is(textarea, math-field) {
   min-height: var(--gu-control-height-md) !important;
   padding: 0 var(--gu-control-padding-x) !important;
 }
 
 .gu-control-text textarea,
-.gu-control-numeric textarea {
+.gu-control-numeric textarea,
+.gu-control-math textarea,
+.gu-control-math math-field {
   padding-top: var(--gu-control-padding-y) !important;
   padding-bottom: var(--gu-control-padding-y) !important;
+}
+
+.gu-control-math math-field {
+  font-size: var(--gu-math-font-size) !important;
+  line-height: 1.05 !important;
+  padding-top: calc(var(--gu-control-padding-y) - 2px) !important;
+  padding-bottom: calc(var(--gu-control-padding-y) - 2px) !important;
 }
 
 .gu-control-color:is(.widget-colorpicker, .jupyter-widget-colorpicker),
@@ -206,6 +217,7 @@
 .gu-control-dropdown select:not([multiple]):focus-visible,
 .gu-control-multiselect select[multiple]:focus-visible,
 .gu-control-targets select[multiple]:focus-visible,
+.gu-control-math :is(textarea, math-field):focus-visible,
 .gu-action-button:is(button, .widget-button, .jupyter-button):focus-visible,
 .gu-action-button :is(button, .widget-button, .jupyter-button):focus-visible,
 :is(.gu-icon-button, .smart-slider-icon-button, .gu-inline-icon-button, .gu-legend-inline-button):is(button, .widget-button, .jupyter-button):focus-visible,
@@ -220,6 +232,7 @@
 :is(.mod-invalid.gu-control-dropdown, .mod-invalid .gu-control-dropdown) select:not([multiple]),
 :is(.mod-invalid.gu-control-multiselect, .mod-invalid .gu-control-multiselect) select[multiple],
 :is(.mod-invalid.gu-control-targets, .mod-invalid .gu-control-targets) select[multiple],
+:is(.mod-invalid.gu-control-math, .mod-invalid .gu-control-math) :is(textarea, math-field),
 .mod-invalid.gu-readonly-value {
   border-color: var(--gu-color-danger) !important;
   box-shadow: 0 0 0 1px var(--gu-color-danger-soft) !important;

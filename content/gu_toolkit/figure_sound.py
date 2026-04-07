@@ -1,4 +1,4 @@
-"""Figure-level streaming sound playback.
+"""Sound playback and sound-generation integration for interactive figures.
 
 Public entry points
 -------------------
@@ -6,29 +6,40 @@ Public entry points
 
 Architecture note
 -----------------
-This module keeps GU-specific playback policy in a small adapter layer while the
-vendored ``jlab_function_audio`` runtime owns buffering, browser transport,
-frontend lifecycle, and bounded streaming auto-normalization.
+Sound features are layered on top of the figure/plot model so audio generation reacts to the same selection and parameter state as visual rendering.
 
 Learn more / explore
 --------------------
 - Start with ``docs/guides/api-discovery.md`` for the package-level task map.
 - Example notebook: ``examples/Fourier-Sounds.ipynb``.
 - Regression/spec tests: ``tests/test_figure_sound.py``.
-- Runtime discovery tip: pair this API with ``Plot.sound(...)`` and the Fourier
-  sound notebooks to see the full audio workflow.
+- Runtime discovery tip: pair this API with ``Figure.sound(...)`` and the Fourier sound notebooks to see the full audio workflow.
 """
 
 from __future__ import annotations
 
-import importlib
-import weakref
-from contextlib import contextmanager
+"""Figure-level streaming sound playback.
+
+This module owns the figure's optional sound-generation subsystem:
+
+- figure-scoped enable/disable state,
+- single-active-plot playback policy,
+- incremental chunk rendering from plot numeric expressions,
+- a thin browser bridge that queues PCM chunks in Web Audio.
+
+The Python side renders one second of mono PCM at a time. The browser side
+requests chunks on demand and schedules them into a small playback queue.
+"""
+
+import base64
+import uuid
+import warnings
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
+import traitlets
 
-from ._widget_stubs import install_widget_stubs, widgets
+from ._widget_stubs import anywidget, widgets
 
 if TYPE_CHECKING:
     from .Figure import Figure
@@ -36,175 +47,366 @@ if TYPE_CHECKING:
     from .figure_plot import Plot
 
 
-_PLAYER_CLASS: type[Any] | None = None
-_PLAYER_CONFIG_CLASS: type[Any] | None = None
+class _SoundStreamBridge(anywidget.AnyWidget):
+    """Hidden frontend bridge that turns PCM chunks into browser audio."""
 
+    root_class = traitlets.Unicode("").tag(sync=True)
 
-def _load_player_runtime() -> tuple[type[Any], type[Any]]:
-    global _PLAYER_CLASS, _PLAYER_CONFIG_CLASS
+    _esm = r"""
+    function safeNumber(value, fallback) {
+      const num = Number(value);
+      return Number.isFinite(num) ? num : fallback;
+    }
 
-    if _PLAYER_CLASS is None or _PLAYER_CONFIG_CLASS is None:
-        install_widget_stubs()
-        player_module = importlib.import_module(
-            "gu_toolkit._vendor.jlab_function_audio.player"
-        )
-        config_module = importlib.import_module(
-            "gu_toolkit._vendor.jlab_function_audio.config"
-        )
-        _PLAYER_CLASS = player_module.FunctionAudioPlayer
-        _PLAYER_CONFIG_CLASS = config_module.PlayerConfiguration
-    return _PLAYER_CLASS, _PLAYER_CONFIG_CLASS
+    function clamp(value, minValue, maxValue) {
+      return Math.min(maxValue, Math.max(minValue, value));
+    }
 
+    function decodePcm16Base64(payload) {
+      const text = String(payload || "");
+      const binary = atob(text);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i += 1) {
+        bytes[i] = binary.charCodeAt(i) & 0xff;
+      }
+      return new Int16Array(bytes.buffer.slice(0));
+    }
 
-class _PlotSignalAdapter:
-    """Batched GU-to-callable adapter used by the vendored player."""
+    function modulo(value, period) {
+      if (!(period > 0)) return 0;
+      const out = value % period;
+      return out < 0 ? out + period : out;
+    }
 
-    _index_tolerance = 1.0e-6
+    export default {
+      render({ model, el }) {
+        el.style.display = "none";
 
-    def __init__(
-        self,
-        plot: Plot,
-        *,
-        sample_rate: int,
-        period: float,
-        batch_samples: int,
-        value_tolerance: float,
-    ) -> None:
-        self._plot = plot
-        self._sample_rate = int(sample_rate)
-        self._period = float(period)
-        self._batch_samples = max(1, int(batch_samples))
-        self._value_tolerance = float(value_tolerance)
-        self._cache_start_time: float | None = None
-        self._cache_values = np.zeros(0, dtype=np.float64)
+        const state = {
+          audioContext: null,
+          isPlaying: false,
+          activeToken: null,
+          activePlotId: "",
+          sourceEntries: [],
+          nextStartTime: 0,
+          requestInFlight: 0,
+          maxBufferedSeconds: 2.0,
+          loopSeconds: 60.0,
+        };
 
-    def __call__(self, time_seconds: float) -> float:
-        sample_time = float(time_seconds)
-        cache_start = self._cache_start_time
-        if cache_start is not None and self._cache_values.size:
-            offset_samples = (sample_time - cache_start) * float(self._sample_rate)
-            local_index = int(round(offset_samples))
-            if (
-                0 <= local_index < self._cache_values.shape[0]
-                and abs(offset_samples - local_index) <= self._index_tolerance
-            ):
-                return float(self._cache_values[local_index])
+        function rootEl() {
+          const rootClass = model.get("root_class") || "";
+          return rootClass ? document.querySelector(`.${rootClass}`) : null;
+        }
 
-        offsets = np.arange(self._batch_samples, dtype=np.float64) / float(self._sample_rate)
-        values = self._evaluate_times(sample_time + offsets)
-        self._cache_start_time = sample_time
-        self._cache_values = values
-        return float(values[0])
+        function ensureAudioContext() {
+          if (state.audioContext) return state.audioContext;
+          const Ctor = window.AudioContext || window.webkitAudioContext;
+          if (!Ctor) return null;
+          try {
+            state.audioContext = new Ctor();
+          } catch (e) {
+            state.audioContext = null;
+          }
+          return state.audioContext;
+        }
 
-    def _preflight(self, *, start_seconds: float, duration_seconds: float) -> None:
-        frame_count = max(1, int(round(float(duration_seconds) * float(self._sample_rate))))
-        offsets = np.arange(frame_count, dtype=np.float64) / float(self._sample_rate)
-        _ = self._evaluate_times(float(start_seconds) + offsets)
+        function primeAudioContext() {
+          const ctx = ensureAudioContext();
+          if (!ctx) return;
+          if (ctx.state === "suspended") {
+            try {
+              ctx.resume();
+            } catch (e) {}
+          }
+        }
 
-    def _allow_over_range_enabled(self) -> bool:
-        handler = getattr(self._plot, "autonormalization", None)
-        if callable(handler):
-            try:
-                return bool(handler())
-            except Exception:
-                return False
-        return bool(getattr(self._plot, "_sound_autonormalization", False))
+        function clearEndedEntries() {
+          const ctx = state.audioContext;
+          if (!ctx) {
+            state.sourceEntries = [];
+            return;
+          }
+          const now = ctx.currentTime - 0.02;
+          state.sourceEntries = state.sourceEntries.filter((entry) => entry.endAt > now);
+        }
 
-    def _evaluate_times(self, times: np.ndarray) -> np.ndarray:
-        wrapped_times = np.mod(np.asarray(times, dtype=np.float64), self._period)
+        function bufferedSeconds() {
+          const ctx = state.audioContext;
+          if (!ctx) return 0;
+          clearEndedEntries();
+          if (!state.sourceEntries.length) return 0;
+          const tail = state.sourceEntries.reduce((best, entry) => (
+            entry.endAt > best.endAt ? entry : best
+          ));
+          return Math.max(0, tail.endAt - ctx.currentTime);
+        }
 
-        try:
-            raw_values = self._plot.numeric_expression(wrapped_times)
-            values = np.asarray(raw_values, dtype=np.float64)
-        except Exception as exc:  # pragma: no cover - exercised via public API tests.
-            raise ValueError(
-                f"Failed to evaluate sound for plot {self._plot.id!r}: {exc}"
-            ) from exc
+        function currentPlaybackCursor() {
+          const ctx = state.audioContext;
+          if (!ctx) return 0;
+          clearEndedEntries();
+          const now = ctx.currentTime;
+          for (const entry of state.sourceEntries) {
+            if (now >= entry.startAt && now < entry.endAt) {
+              return modulo(entry.chunkStartSeconds + (now - entry.startAt), state.loopSeconds);
+            }
+          }
+          if (state.sourceEntries.length) {
+            const first = state.sourceEntries.reduce((best, entry) => (
+              entry.startAt < best.startAt ? entry : best
+            ));
+            return modulo(first.chunkStartSeconds, state.loopSeconds);
+          }
+          return 0;
+        }
 
-        frame_count = int(wrapped_times.shape[0])
-        if values.ndim == 0:
-            values = np.full(frame_count, float(values), dtype=np.float64)
-        else:
-            values = np.ravel(values)
-            if values.shape[0] != frame_count:
-                raise ValueError(
-                    "Sound expression must evaluate to exactly one sample per time point."
-                )
+        function stopAllSources() {
+          for (const entry of state.sourceEntries) {
+            try {
+              entry.source.onended = null;
+            } catch (e) {}
+            try {
+              entry.source.stop();
+            } catch (e) {}
+            try {
+              entry.source.disconnect();
+            } catch (e) {}
+          }
+          state.sourceEntries = [];
+          state.nextStartTime = 0;
+          state.requestInFlight = 0;
+          state.isPlaying = false;
+          state.activePlotId = "";
+        }
 
-        allow_over_range = self._allow_over_range_enabled()
+        function requestChunk(cursorSeconds) {
+          if (!state.isPlaying || state.activeToken === null || state.activeToken === undefined) {
+            return;
+          }
+          if (state.requestInFlight > 0) return;
+          state.requestInFlight += 1;
+          const payload = {
+            type: "sound_stream_request",
+            action: "request_chunk",
+            token: state.activeToken,
+          };
+          if (Number.isFinite(cursorSeconds)) {
+            payload.cursor_seconds = cursorSeconds;
+          }
+          try {
+            model.send(payload);
+          } catch (e) {
+            state.requestInFlight = Math.max(0, state.requestInFlight - 1);
+          }
+        }
 
-        if not np.all(np.isfinite(values)):
-            if allow_over_range:
-                raise ValueError("Sound expression must stay finite during playback.")
-            raise ValueError("Sound expression must be finite and stay within [-1, 1].")
+        function maybeRequestChunk() {
+          if (!state.isPlaying) return;
+          if (bufferedSeconds() >= state.maxBufferedSeconds) return;
+          requestChunk(undefined);
+        }
 
-        if not allow_over_range:
-            peak = float(np.max(np.abs(values))) if values.size else 0.0
-            if peak > 1.0 + self._value_tolerance:
-                raise ValueError(
-                    "Sound expression must stay within [-1, 1]; enable "
-                    "autonormalization to attenuate louder audio automatically."
-                )
+        function scheduleChunk(message) {
+          const ctx = ensureAudioContext();
+          state.requestInFlight = Math.max(0, state.requestInFlight - 1);
+          if (!ctx || !state.isPlaying) return;
+          if (message.token !== state.activeToken) return;
 
-        return values.astype(np.float64, copy=False)
+          const sampleRate = Math.max(1, Math.trunc(safeNumber(message.sample_rate, 44100)));
+          const frameCount = Math.max(0, Math.trunc(safeNumber(message.frame_count, 0)));
+          const chunkStartSeconds = modulo(
+            safeNumber(message.chunk_start_seconds, 0),
+            state.loopSeconds,
+          );
+          const pcm = decodePcm16Base64(message.pcm_base64 || "");
+          const buffer = ctx.createBuffer(1, frameCount || pcm.length, sampleRate);
+          const channel = buffer.getChannelData(0);
+          const usable = Math.min(channel.length, pcm.length);
+          for (let i = 0; i < usable; i += 1) {
+            channel[i] = clamp(pcm[i] / 32767.0, -1.0, 1.0);
+          }
+          for (let i = usable; i < channel.length; i += 1) {
+            channel[i] = 0.0;
+          }
+
+          const source = ctx.createBufferSource();
+          source.buffer = buffer;
+          source.connect(ctx.destination);
+
+          const now = ctx.currentTime + 0.03;
+          const startAt = Math.max(now, state.nextStartTime || now);
+          const duration = buffer.duration || (frameCount / sampleRate);
+          const entry = {
+            source,
+            startAt,
+            endAt: startAt + duration,
+            chunkStartSeconds,
+          };
+
+          source.onended = () => {
+            state.sourceEntries = state.sourceEntries.filter((candidate) => candidate !== entry);
+            maybeRequestChunk();
+          };
+
+          state.sourceEntries.push(entry);
+          state.sourceEntries.sort((left, right) => left.startAt - right.startAt);
+          state.nextStartTime = entry.endAt;
+
+          try {
+            source.start(startAt);
+          } catch (e) {
+            state.sourceEntries = state.sourceEntries.filter((candidate) => candidate !== entry);
+            try { source.disconnect(); } catch (err) {}
+            return;
+          }
+
+          maybeRequestChunk();
+        }
+
+        function handleStart(message) {
+          primeAudioContext();
+          stopAllSources();
+          state.isPlaying = true;
+          state.activeToken = message.token;
+          state.activePlotId = String(message.plot_id || "");
+          requestChunk(safeNumber(message.cursor_seconds, 0));
+        }
+
+        function handleStop(message) {
+          state.activeToken = message.token;
+          stopAllSources();
+        }
+
+        function handleRefresh(message) {
+          primeAudioContext();
+          const cursorSeconds = currentPlaybackCursor();
+          stopAllSources();
+          state.isPlaying = true;
+          state.activeToken = message.token;
+          state.activePlotId = String(message.plot_id || "");
+          requestChunk(cursorSeconds);
+        }
+
+        function onCustomMessage(message) {
+          if (!message || message.type !== "sound_stream") return;
+          const action = message.action;
+          if (action === "start") {
+            handleStart(message);
+            return;
+          }
+          if (action === "stop") {
+            handleStop(message);
+            return;
+          }
+          if (action === "refresh") {
+            handleRefresh(message);
+            return;
+          }
+          if (action === "chunk") {
+            scheduleChunk(message);
+            return;
+          }
+          if (action === "error") {
+            handleStop(message);
+          }
+        }
+
+        function onPointerIntent(event) {
+          const target = event && event.target;
+          const root = rootEl();
+          if (!(target instanceof HTMLElement) || !(root instanceof HTMLElement)) return;
+          if (!root.contains(target)) return;
+          primeAudioContext();
+        }
+
+        function onKeydownIntent(event) {
+          const root = rootEl();
+          const active = document.activeElement;
+          if (!(root instanceof HTMLElement) || !(active instanceof HTMLElement)) return;
+          if (!root.contains(active)) return;
+          primeAudioContext();
+        }
+
+        model.on("msg:custom", onCustomMessage);
+        document.addEventListener("pointerdown", onPointerIntent, true);
+        document.addEventListener("keydown", onKeydownIntent, true);
+
+        return () => {
+          try { model.off("msg:custom", onCustomMessage); } catch (e) {}
+          try { document.removeEventListener("pointerdown", onPointerIntent, true); } catch (e) {}
+          try { document.removeEventListener("keydown", onKeydownIntent, true); } catch (e) {}
+          stopAllSources();
+          const ctx = state.audioContext;
+          if (ctx && typeof ctx.close === "function") {
+            try { ctx.close(); } catch (e) {}
+          }
+          state.audioContext = null;
+        };
+      },
+    };
+    """
 
 
 class FigureSoundManager:
     """Own the figure's single-active streaming playback state.
-
+    
     Full API
     --------
     ``FigureSoundManager(figure: Figure, legend: LegendPanelManager, root_widget: widgets.Box | None=None)``
-
+    
+    Public members exposed from this class: ``enabled``, ``active_plot_id``, ``sound_generation_enabled``, ``sound``,
+        ``on_parameter_change``
+    
     Parameters
     ----------
     figure : Figure
         Figure instance that owns the relevant state. Required.
+    
     legend : LegendPanelManager
-        Legend manager used to keep the speaker-button UI in sync with playback.
-        Required.
+        Value for ``legend`` in this API. Required.
+    
     root_widget : widgets.Box | None, optional
-        Hidden widget container used when the vendored player should live inside
-        the figure widget tree. Defaults to ``None``.
-
+        Value for ``root_widget`` in this API. Defaults to ``None``.
+    
     Returns
     -------
     FigureSoundManager
-        New ``FigureSoundManager`` instance configured according to the
-        constructor arguments.
-
+        New ``FigureSoundManager`` instance configured according to the constructor arguments.
+    
     Optional arguments
     ------------------
-    - ``root_widget=None``: Hidden widget container used for embedded playback.
-
+    - ``root_widget=None``: Value for ``root_widget`` in this API.
+    
     Architecture note
     -----------------
-    ``FigureSoundManager`` lives in ``gu_toolkit.figure_sound``. GU keeps the
-    public figure/plot sound contract here, while the vendored
-    ``jlab_function_audio`` player owns browser transport, buffering, queue
-    flushing, and bounded streaming auto-normalization.
-
+    ``FigureSoundManager`` lives in ``gu_toolkit.figure_sound``. Sound features are layered on top of the figure/plot model so audio generation reacts to the same selection and parameter state as visual rendering. Use the class as the stable owner for this slice of state rather than reaching into collaborators directly.
+    
     Examples
     --------
     Construction::
-
+    
         from gu_toolkit.figure_sound import FigureSoundManager
-        manager = FigureSoundManager(...)
-
+        obj = FigureSoundManager(...)
+    
+    Discovery-oriented use::
+    
+        help(FigureSoundManager)
+        dir(obj)
+    
     Learn more / explore
     --------------------
-    - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the
-      package.
+    - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the package.
     - Example notebook: ``examples/Fourier-Sounds.ipynb``.
     - Regression/spec tests: ``tests/test_figure_sound.py``.
-    - In a notebook or REPL, run ``help(FigureSoundManager)`` and ``dir(...)``
-      to inspect adjacent members.
+    - Runtime discovery tip: pair this API with ``Figure.sound(...)`` and the Fourier sound notebooks to see the full audio workflow.
+    - In a notebook or REPL, run ``help(FigureSoundManager)`` and ``dir(FigureSoundManager)`` to inspect adjacent members.
     """
 
     sample_rate = 44100
+    chunk_seconds = 1.0
     loop_seconds = 60.0
-    start_validation_seconds = 1.0
-    value_tolerance = 1.0e-9
+    _value_tolerance = 1.0e-9
 
     def __init__(
         self,
@@ -218,15 +420,23 @@ class FigureSoundManager:
         self._root_widget = root_widget
         self._enabled = True
         self._active_plot_id: str | None = None
-        self._player: Any | None = None
-        self._player_embedded = False
-        self._player_state_observer_guard = 0
-        self._active_signal_adapter: _PlotSignalAdapter | None = None
-        self._finalizer = weakref.finalize(
-            self,
-            type(self)._finalize_manager,
-            weakref.ref(self),
+        self._generation_token = 0
+        self._cursor_seconds = 0.0
+        self._primed_chunk: tuple[int, float, str, int] | None = None
+
+        self._root_css_class = f"gu-figure-sound-root-{uuid.uuid4().hex[:8]}"
+        if self._root_widget is not None:
+            add_class = getattr(self._root_widget, "add_class", None)
+            if callable(add_class):
+                add_class(self._root_css_class)
+
+        self._bridge = _SoundStreamBridge(
+            root_class=self._root_css_class,
+            layout=widgets.Layout(width="0px", height="0px", margin="0px"),
         )
+        self._bridge.on_msg(self._handle_bridge_message)
+        if self._root_widget is not None and self._bridge not in self._root_widget.children:
+            self._root_widget.children += (self._bridge,)
 
         bind_handler = getattr(self._legend, "bind_sound_enabled_handler", None)
         if callable(bind_handler):
@@ -234,139 +444,144 @@ class FigureSoundManager:
         self._legend.set_sound_generation_enabled(self._enabled)
         self._legend.set_sound_playing_plot(None)
 
-    @staticmethod
-    def _finalize_manager(manager_ref: weakref.ReferenceType[FigureSoundManager]) -> None:
-        manager = manager_ref()
-        if manager is None:
-            return
-        try:
-            manager.close()
-        except Exception:
-            return
-
     @property
     def enabled(self) -> bool:
         """Return whether sound controls are enabled for the figure.
-
+        
         Full API
         --------
         ``obj.enabled -> bool``
-
+        
         Parameters
         ----------
-        None. This API does not declare user-supplied parameters beyond
-        implicit object context.
-
+        None. This API does not declare user-supplied parameters beyond implicit object context.
+        
         Returns
         -------
         bool
-            ``True`` when figure-linked sound controls are enabled.
-
+            Result produced by this API.
+        
         Optional arguments
         ------------------
         This API does not declare optional arguments in its Python signature.
-
+        
         Architecture note
         -----------------
-        This member belongs to ``FigureSoundManager``. The adapter keeps figure
-        policy in GU while delegating runtime playback to the vendored engine.
-
+        This member belongs to ``FigureSoundManager``. Sound features are layered on top of the figure/plot model so audio generation reacts to the same selection and parameter state as visual rendering. Use it through the owning object rather than bypassing the surrounding figure/runtime machinery.
+        
         Examples
         --------
         Basic use::
-
-            current = manager.enabled
-
+        
+            obj = FigureSoundManager(...)
+            current = obj.enabled
+        
+        Discovery-oriented use::
+        
+            help(FigureSoundManager)
+            # then follow the guide/test links listed below
+        
         Learn more / explore
         --------------------
+        - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the package.
         - Example notebook: ``examples/Fourier-Sounds.ipynb``.
         - Regression/spec tests: ``tests/test_figure_sound.py``.
-        - In a notebook or REPL, run ``help(FigureSoundManager.enabled)``.
+        - Runtime discovery tip: pair this API with ``Figure.sound(...)`` and the Fourier sound notebooks to see the full audio workflow.
+        - In a notebook or REPL, run ``help(FigureSoundManager)`` and ``dir(FigureSoundManager)`` to inspect adjacent members.
         """
         return self._enabled
 
     @property
     def active_plot_id(self) -> str | None:
         """Return the currently playing plot id, if any.
-
+        
         Full API
         --------
         ``obj.active_plot_id -> str | None``
-
+        
         Parameters
         ----------
-        None. This API does not declare user-supplied parameters beyond
-        implicit object context.
-
+        None. This API does not declare user-supplied parameters beyond implicit object context.
+        
         Returns
         -------
         str | None
-            Active plot id when playback is running, otherwise ``None``.
-
+            Result produced by this API.
+        
         Optional arguments
         ------------------
         This API does not declare optional arguments in its Python signature.
-
+        
         Architecture note
         -----------------
-        This member belongs to ``FigureSoundManager``. GU owns the one-active-
-        plot policy even though the vendored player itself only knows about one
-        callable at a time.
-
+        This member belongs to ``FigureSoundManager``. Sound features are layered on top of the figure/plot model so audio generation reacts to the same selection and parameter state as visual rendering. Use it through the owning object rather than bypassing the surrounding figure/runtime machinery.
+        
         Examples
         --------
         Basic use::
-
-            current_plot = manager.active_plot_id
-
+        
+            obj = FigureSoundManager(...)
+            current = obj.active_plot_id
+        
+        Discovery-oriented use::
+        
+            help(FigureSoundManager)
+            # then follow the guide/test links listed below
+        
         Learn more / explore
         --------------------
+        - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the package.
         - Example notebook: ``examples/Fourier-Sounds.ipynb``.
         - Regression/spec tests: ``tests/test_figure_sound.py``.
-        - In a notebook or REPL, run ``help(FigureSoundManager.active_plot_id)``.
+        - Runtime discovery tip: pair this API with ``Figure.sound(...)`` and the Fourier sound notebooks to see the full audio workflow.
+        - In a notebook or REPL, run ``help(FigureSoundManager)`` and ``dir(FigureSoundManager)`` to inspect adjacent members.
         """
         return self._active_plot_id
 
     def sound_generation_enabled(self, enabled: bool | None = None) -> bool:
-        """Query or set the figure-wide sound-generation toggle.
-
+        """Query or set the figure-level sound-generation toggle.
+        
         Full API
         --------
         ``obj.sound_generation_enabled(enabled: bool | None=None) -> bool``
-
+        
         Parameters
         ----------
         enabled : bool | None, optional
-            Boolean flag that turns figure-linked sound controls on or off.
-            Defaults to ``None``.
-
+            Boolean flag that turns a feature on or off. Defaults to ``None``.
+        
         Returns
         -------
         bool
-            The resulting enabled state.
-
+            Result produced by this API.
+        
         Optional arguments
         ------------------
-        - ``enabled=None``: Query the current state without mutating it.
-
+        - ``enabled=None``: Boolean flag that turns a feature on or off.
+        
         Architecture note
         -----------------
-        This member belongs to ``FigureSoundManager``. The method updates GU's
-        public enable/disable state and keeps the legend speaker buttons aligned
-        with that state.
-
+        This member belongs to ``FigureSoundManager``. Sound features are layered on top of the figure/plot model so audio generation reacts to the same selection and parameter state as visual rendering. Use it through the owning object rather than bypassing the surrounding figure/runtime machinery.
+        
         Examples
         --------
         Basic use::
-
-            manager.sound_generation_enabled(False)
-            manager.sound_generation_enabled(True)
-
+        
+            obj = FigureSoundManager(...)
+            result = obj.sound_generation_enabled(...)
+        
+        Discovery-oriented use::
+        
+            help(FigureSoundManager)
+            # then follow the guide/test links listed below
+        
         Learn more / explore
         --------------------
+        - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the package.
         - Example notebook: ``examples/Fourier-Sounds.ipynb``.
         - Regression/spec tests: ``tests/test_figure_sound.py``.
-        - In a notebook or REPL, run ``help(FigureSoundManager.sound_generation_enabled)``.
+        - Runtime discovery tip: pair this API with ``Figure.sound(...)`` and the Fourier sound notebooks to see the full audio workflow.
+        - In a notebook or REPL, run ``help(FigureSoundManager)`` and ``dir(FigureSoundManager)`` to inspect adjacent members.
         """
         if enabled is None:
             return self._enabled
@@ -378,57 +593,62 @@ class FigureSoundManager:
 
         self._enabled = next_enabled
         if not self._enabled:
-            self._stop_player()
+            self._stop_playback()
         self._legend.set_sound_generation_enabled(self._enabled)
         return self._enabled
 
     def sound(self, plot_id: str, *, run: bool = True) -> None:
-        """Start, stop, or restart playback for one plot.
-
+        """Start, stop, or restart playback for ``plot_id``.
+        
         Full API
         --------
         ``obj.sound(plot_id: str, *, run: bool=True) -> None``
-
+        
         Parameters
         ----------
         plot_id : str
             Stable plot identifier used for lookup or update. Required.
+        
         run : bool, optional
-            When ``True``, start or restart the requested plot. When ``False``,
-            stop it if it is the active plot. Defaults to ``True``.
-
+            Value for ``run`` in this API. Defaults to ``True``.
+        
         Returns
         -------
         None
             This call is used for side effects and does not return a value.
-
+        
         Optional arguments
         ------------------
-        - ``run=True``: Start or restart the requested plot.
-
+        - ``run=True``: Value for ``run`` in this API.
+        
         Architecture note
         -----------------
-        This member belongs to ``FigureSoundManager``. GU preserves restart-from-
-        zero behavior, strict synchronous preflight validation, and legend state
-        while the vendored player handles buffered runtime playback.
-
+        This member belongs to ``FigureSoundManager``. Sound features are layered on top of the figure/plot model so audio generation reacts to the same selection and parameter state as visual rendering. Use it through the owning object rather than bypassing the surrounding figure/runtime machinery.
+        
         Examples
         --------
         Basic use::
-
-            manager.sound("tone", run=True)
-            manager.sound("tone", run=False)
-
+        
+            obj = FigureSoundManager(...)
+            obj.sound(...)
+        
+        Discovery-oriented use::
+        
+            help(FigureSoundManager)
+            # then follow the guide/test links listed below
+        
         Learn more / explore
         --------------------
+        - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the package.
         - Example notebook: ``examples/Fourier-Sounds.ipynb``.
         - Regression/spec tests: ``tests/test_figure_sound.py``.
-        - In a notebook or REPL, run ``help(FigureSoundManager.sound)``.
+        - Runtime discovery tip: pair this API with ``Figure.sound(...)`` and the Fourier sound notebooks to see the full audio workflow.
+        - In a notebook or REPL, run ``help(FigureSoundManager)`` and ``dir(FigureSoundManager)`` to inspect adjacent members.
         """
         normalized_plot_id = str(plot_id)
         if not run:
             if self._active_plot_id == normalized_plot_id:
-                self._stop_player()
+                self._stop_playback()
             return
 
         if not self._enabled:
@@ -440,295 +660,278 @@ class FigureSoundManager:
         if plot is None:
             raise KeyError(f"Unknown plot id: {normalized_plot_id!r}")
 
-        allow_over_range = bool(plot.autonormalization())
-        adapter = self._build_signal_adapter(plot)
-        adapter._preflight(
-            start_seconds=0.0,
-            duration_seconds=self.start_validation_seconds,
-        )
+        previous_token = self._generation_token
+        previous_plot_id = self._active_plot_id
+        previous_cursor = self._cursor_seconds
+        previous_primed = self._primed_chunk
+        next_token = previous_token + 1
 
-        player = self._ensure_player()
-        if bool(player.configuration.auto_normalize) != allow_over_range:
-            player.set_auto_normalize(allow_over_range)
-        player.set_function(
-            adapter,
-            function_name=str(getattr(plot, "label", None) or plot.id),
-            phase_match=False,
-        )
-        player.seek(0.0)
-        player.play()
+        try:
+            primed_chunk = self._build_chunk(
+                plot,
+                start_seconds=0.0,
+                token=next_token,
+            )
+        except Exception:
+            self._generation_token = previous_token
+            self._active_plot_id = previous_plot_id
+            self._cursor_seconds = previous_cursor
+            self._primed_chunk = previous_primed
+            self._legend.set_sound_playing_plot(previous_plot_id)
+            raise
 
-        self._active_signal_adapter = adapter
+        self._generation_token = next_token
         self._active_plot_id = normalized_plot_id
+        self._cursor_seconds = 0.0
+        self._primed_chunk = primed_chunk
         self._legend.set_sound_playing_plot(normalized_plot_id)
+        self._send_message(
+            {
+                "type": "sound_stream",
+                "action": "start",
+                "plot_id": normalized_plot_id,
+                "token": self._generation_token,
+                "cursor_seconds": 0.0,
+            }
+        )
 
     def on_parameter_change(self, _event: Any) -> None:
         """Refresh queued audio so future chunks use the latest parameter values.
-
+        
         Full API
         --------
         ``obj.on_parameter_change(_event: Any) -> None``
-
+        
         Parameters
         ----------
         _event : Any
-            Change payload forwarded from figure render hooks. Required.
-
+            Value for ``_event`` in this API. Required.
+        
         Returns
         -------
         None
             This call is used for side effects and does not return a value.
-
+        
         Optional arguments
         ------------------
         This API does not declare optional arguments in its Python signature.
-
+        
         Architecture note
         -----------------
-        This member belongs to ``FigureSoundManager``. The active adapter reads
-        plot state dynamically, so refreshing parameters only needs to flush the
-        vendored player queue from the current cursor.
-
+        This member belongs to ``FigureSoundManager``. Sound features are layered on top of the figure/plot model so audio generation reacts to the same selection and parameter state as visual rendering. Use it through the owning object rather than bypassing the surrounding figure/runtime machinery.
+        
         Examples
         --------
         Basic use::
-
-            manager.on_parameter_change({"reason": "slider"})
-
+        
+            obj = FigureSoundManager(...)
+            obj.on_parameter_change(...)
+        
+        Discovery-oriented use::
+        
+            help(FigureSoundManager)
+            # then follow the guide/test links listed below
+        
         Learn more / explore
         --------------------
+        - Start with ``docs/guides/api-discovery.md`` for a task-oriented map of the package.
         - Example notebook: ``examples/Fourier-Sounds.ipynb``.
         - Regression/spec tests: ``tests/test_figure_sound.py``.
-        - In a notebook or REPL, run ``help(FigureSoundManager.on_parameter_change)``.
+        - Runtime discovery tip: pair this API with ``Figure.sound(...)`` and the Fourier sound notebooks to see the full audio workflow.
+        - In a notebook or REPL, run ``help(FigureSoundManager)`` and ``dir(FigureSoundManager)`` to inspect adjacent members.
         """
+        if not self._enabled or self._active_plot_id is None:
+            return
+        plot = self._figure.plots.get(self._active_plot_id)
+        if plot is None:
+            self._stop_playback()
+            return
+        self._generation_token += 1
+        self._primed_chunk = None
+        self._send_message(
+            {
+                "type": "sound_stream",
+                "action": "refresh",
+                "plot_id": self._active_plot_id,
+                "token": self._generation_token,
+            }
+        )
+
+    def _stop_playback(self) -> None:
+        self._generation_token += 1
+        token = self._generation_token
+        self._active_plot_id = None
+        self._cursor_seconds = 0.0
+        self._primed_chunk = None
+        self._legend.set_sound_playing_plot(None)
+        self._send_message(
+            {
+                "type": "sound_stream",
+                "action": "stop",
+                "token": token,
+            }
+        )
+
+    def _handle_bridge_message(self, _widget: Any, content: Any, _buffers: Any) -> None:
+        if not isinstance(content, dict):
+            return
+        if content.get("type") != "sound_stream_request":
+            return
+        if content.get("action") != "request_chunk":
+            return
+
+        token = self._safe_int(content.get("token"), default=-1)
+        if token != self._generation_token:
+            return
         if not self._enabled or self._active_plot_id is None:
             return
 
         plot = self._figure.plots.get(self._active_plot_id)
         if plot is None:
-            self._stop_player()
+            self._stop_playback()
             return
 
-        player = self._player
-        if player is None:
-            return
-
-        target_mode = bool(plot.autonormalization())
-        if bool(player.configuration.auto_normalize) != target_mode:
-            player.set_auto_normalize(target_mode)
-            return
-
-        player.seek(float(player.position))
-
-    def on_plot_removed(self, plot_id: str) -> None:
-        """Stop playback if the removed plot is the active sound source.
-
-        Full API
-        --------
-        ``obj.on_plot_removed(plot_id: str) -> None``
-
-        Parameters
-        ----------
-        plot_id : str
-            Stable identifier of the plot being removed from the figure.
-            Required.
-
-        Returns
-        -------
-        None
-            This call is used for side effects and does not return a value.
-
-        Optional arguments
-        ------------------
-        This API does not declare optional arguments in its Python signature.
-
-        Architecture note
-        -----------------
-        This member belongs to ``FigureSoundManager``. Plot removal is figure-
-        specific coordination logic, so GU stops the vendored runtime when the
-        active plot disappears from the figure model.
-
-        Examples
-        --------
-        Basic use::
-
-            manager.on_plot_removed("tone")
-
-        Learn more / explore
-        --------------------
-        - Example notebook: ``examples/Fourier-Sounds.ipynb``.
-        - Regression/spec tests: ``tests/test_figure_sound.py``.
-        - In a notebook or REPL, run ``help(FigureSoundManager.on_plot_removed)``.
-        """
-        if self._active_plot_id == str(plot_id):
-            self._stop_player()
-
-    def close(self) -> None:
-        """Release the vendored player and detach it from the figure widget tree.
-
-        Full API
-        --------
-        ``obj.close() -> None``
-
-        Parameters
-        ----------
-        None
-
-        Returns
-        -------
-        None
-            The method is idempotent and may be called multiple times safely.
-
-        Optional arguments
-        ------------------
-        This API does not declare optional arguments in its Python signature.
-
-        Architecture note
-        -----------------
-        This member belongs to ``FigureSoundManager``. The manager owns the
-        lifecycle of the lazily-created vendored player and therefore performs
-        best-effort observer teardown, widget detachment, and runtime cleanup.
-
-        Examples
-        --------
-        Basic use::
-
-            manager.close()
-
-        Learn more / explore
-        --------------------
-        - Example notebook: ``examples/Fourier-Sounds.ipynb``.
-        - Regression/spec tests: ``tests/test_figure_sound.py``.
-        - In a notebook or REPL, run ``help(FigureSoundManager.close)``.
-        """
-        player = self._player
-        if player is None:
-            if self._finalizer.alive:
-                self._finalizer.detach()
-            return
-
-        with self._suppress_player_observers():
-            try:
-                player.unobserve(self._handle_player_trait_change, names=["playback_state", "last_error"])
-            except Exception:
-                pass
-            try:
-                player.stop()
-            except Exception:
-                pass
-
-        self._detach_player_widget(player)
+        cursor_override = content.get("cursor_seconds")
+        if cursor_override is not None:
+            self._cursor_seconds = self._normalize_cursor(
+                self._safe_float(cursor_override, default=self._cursor_seconds)
+            )
+            self._primed_chunk = None
 
         try:
-            player.close()
-        except Exception:
-            pass
+            payload = self._next_chunk_payload(plot)
+        except Exception as exc:
+            self._fail_playback(plot_id=self._active_plot_id, error=exc, raise_error=False)
+            return
 
-        self._player = None
-        self._player_embedded = False
-        self._active_signal_adapter = None
-        self._active_plot_id = None
-        self._legend.set_sound_playing_plot(None)
-        if self._finalizer.alive:
-            self._finalizer.detach()
+        self._send_message(payload)
 
-    def _build_signal_adapter(
+    def _next_chunk_payload(self, plot: Plot) -> dict[str, Any]:
+        primed = self._primed_chunk
+        if (
+            primed is not None
+            and primed[0] == self._generation_token
+            and abs(primed[1] - self._cursor_seconds) <= self._value_tolerance
+        ):
+            token, chunk_start_seconds, pcm_base64, frame_count = primed
+            self._primed_chunk = None
+        else:
+            token, chunk_start_seconds, pcm_base64, frame_count = self._build_chunk(
+                plot,
+                start_seconds=self._cursor_seconds,
+                token=self._generation_token,
+            )
+
+        payload = {
+            "type": "sound_stream",
+            "action": "chunk",
+            "plot_id": self._active_plot_id or "",
+            "token": token,
+            "sample_rate": self.sample_rate,
+            "frame_count": frame_count,
+            "chunk_start_seconds": chunk_start_seconds,
+            "pcm_base64": pcm_base64,
+        }
+        self._cursor_seconds = self._normalize_cursor(chunk_start_seconds + self.chunk_seconds)
+        return payload
+
+    def _build_chunk(
         self,
         plot: Plot,
-    ) -> _PlotSignalAdapter:
-        configuration = self._player_config()
-        batch_samples = int(getattr(configuration, "chunk_samples", 1024))
-        return _PlotSignalAdapter(
-            plot,
-            sample_rate=self.sample_rate,
-            period=self.loop_seconds,
-            batch_samples=batch_samples,
-            value_tolerance=self.value_tolerance,
-        )
+        *,
+        start_seconds: float,
+        token: int,
+    ) -> tuple[int, float, str, int]:
+        chunk_start = self._normalize_cursor(start_seconds)
+        frame_count = max(1, int(round(self.sample_rate * self.chunk_seconds)))
+        offsets = np.arange(frame_count, dtype=float) / float(self.sample_rate)
+        x_values = np.mod(chunk_start + offsets, self.loop_seconds)
 
-    def _player_config(self) -> Any:
-        _, player_config_class = _load_player_runtime()
-        return player_config_class(
-            sample_rate=self.sample_rate,
-            period_duration=self.loop_seconds,
-            gain=1.0,
-            auto_normalize=False,
-        )
-
-    def _ensure_player(self) -> Any:
-        if self._player is not None:
-            if self._root_widget is not None and not self._player_embedded:
-                self._embed_player_widget(self._player)
-            return self._player
-
-        player_class, _ = _load_player_runtime()
-        player = player_class(
-            configuration=self._player_config(),
-            auto_display=False,
-        )
-        self._player = player
-        player.observe(self._handle_player_trait_change, names=["playback_state", "last_error"])
-        if self._root_widget is not None:
-            self._embed_player_widget(player)
-        return player
-
-    def _embed_player_widget(self, player: Any) -> None:
-        if self._root_widget is None:
-            return
         try:
-            children = tuple(getattr(self._root_widget, "children", ()) or ())
-            if player not in children:
-                self._root_widget.children = children + (player,)
-        except Exception:
-            return
-        mark_embedded = getattr(player, "mark_embedded", None)
-        if callable(mark_embedded):
-            mark_embedded()
-        self._player_embedded = True
+            raw_values = plot.numeric_expression(x_values)
+            y_values = np.asarray(raw_values, dtype=float)
+        except Exception as exc:
+            raise ValueError(
+                f"Failed to evaluate sound for plot {plot.id!r}: {exc}"
+            ) from exc
 
-    def _detach_player_widget(self, player: Any) -> None:
-        if self._root_widget is None:
-            return
-        try:
-            children = tuple(getattr(self._root_widget, "children", ()) or ())
-            filtered = tuple(child for child in children if child is not player)
-            if filtered != children:
-                self._root_widget.children = filtered
-        except Exception:
-            return
-        self._player_embedded = False
+        if y_values.ndim == 0:
+            y_values = np.full(frame_count, float(y_values), dtype=float)
+        else:
+            y_values = np.ravel(y_values)
+            if y_values.shape[0] != frame_count:
+                raise ValueError(
+                    "Sound expression must evaluate to exactly one sample per time point."
+                )
 
-    @contextmanager
-    def _suppress_player_observers(self):
-        self._player_state_observer_guard += 1
-        try:
-            yield
-        finally:
-            self._player_state_observer_guard = max(0, self._player_state_observer_guard - 1)
+        if not np.all(np.isfinite(y_values)):
+            raise ValueError("Sound expression must be finite and stay within [-1, 1].")
 
-    def _handle_player_trait_change(self, _change: Any) -> None:
-        if self._player_state_observer_guard > 0 or self._active_plot_id is None:
-            return
-        player = self._player
-        if player is None:
-            return
+        peak = float(np.max(np.abs(y_values))) if y_values.size else 0.0
+        if peak > 1.0 + self._value_tolerance:
+            autonormalization_handler = getattr(plot, "autonormalization", None)
+            autonormalization_enabled = False
+            if callable(autonormalization_handler):
+                try:
+                    autonormalization_enabled = bool(autonormalization_handler())
+                except Exception:
+                    autonormalization_enabled = False
+            if autonormalization_enabled and peak > self._value_tolerance:
+                y_values = y_values / peak
+            else:
+                raise ValueError(
+                    "Sound expression must stay within [-1, 1]; enable autonormalization to scale louder chunks automatically."
+                )
 
-        playback_state = str(getattr(player, "playback_state", ""))
-        last_error = str(getattr(player, "last_error", "") or "")
-        if last_error or playback_state in {"error", "stopped"}:
-            self._active_plot_id = None
-            self._active_signal_adapter = None
-            self._legend.set_sound_playing_plot(None)
+        pcm = (np.clip(y_values, -1.0, 1.0) * 32767.0).astype(np.int16)
+        pcm_base64 = base64.b64encode(pcm.tobytes()).decode("ascii")
+        return token, chunk_start, pcm_base64, frame_count
 
-    def _stop_player(self) -> None:
-        player = self._player
+    def _fail_playback(
+        self,
+        *,
+        plot_id: str | None,
+        error: Exception,
+        raise_error: bool = True,
+    ) -> None:
+        self._generation_token += 1
+        token = self._generation_token
         self._active_plot_id = None
-        self._active_signal_adapter = None
+        self._cursor_seconds = 0.0
+        self._primed_chunk = None
         self._legend.set_sound_playing_plot(None)
-        if player is None:
-            return
-        with self._suppress_player_observers():
-            player.stop()
+        self._send_message(
+            {
+                "type": "sound_stream",
+                "action": "error",
+                "plot_id": plot_id or "",
+                "token": token,
+                "message": str(error),
+            }
+        )
+        if raise_error:
+            raise error
+        warnings.warn(f"Sound playback stopped: {error}", stacklevel=2)
 
+    def _send_message(self, payload: dict[str, Any]) -> None:
+        try:
+            self._bridge.send(payload)
+        except TypeError:
+            self._bridge.send(payload, None)
 
-__all__ = ["FigureSoundManager"]
+    def _normalize_cursor(self, value: float) -> float:
+        return float(value) % self.loop_seconds
+
+    @staticmethod
+    def _safe_float(value: Any, *, default: float) -> float:
+        try:
+            return float(value)
+        except Exception:
+            return float(default)
+
+    @staticmethod
+    def _safe_int(value: Any, *, default: int) -> int:
+        try:
+            return int(value)
+        except Exception:
+            return int(default)

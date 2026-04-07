@@ -1048,7 +1048,7 @@ def configure_control(
 
     ensure_fill_layout(widget)
 
-    single_line_families = {"text", "numeric", "dropdown", "color"}
+    single_line_families = {"text", "numeric", "dropdown", "color", "math"}
     shell_families = single_line_families | {"checkbox", "boolean"}
     layout = getattr(widget, "layout", None)
     if layout is not None and family in shell_families:
@@ -1064,6 +1064,7 @@ def configure_control(
         "targets": ("gu-control-multiselect", "gu-control-targets"),
         "checkbox": ("gu-control-checkbox",),
         "boolean": ("gu-control-checkbox",),
+        "math": ("gu-control-math",),
         "readonly": ("gu-readonly-value",),
         "color": ("gu-control-color",),
     }

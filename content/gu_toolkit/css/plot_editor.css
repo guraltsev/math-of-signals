@@ -1,0 +1,123 @@
+/* Plot-editor-specific adjustments that sit on top of shared dialog chrome. */
+
+.gu-plot-editor-panel,
+.gu-plot-editor-panel > *,
+.gu-plot-editor-tab-panel,
+.gu-plot-editor-tab-panel > *,
+.gu-plot-editor-setup-row,
+.gu-plot-editor-setup-row > *,
+.gu-plot-editor-identity-row,
+.gu-plot-editor-identity-row > *,
+.gu-plot-editor-resolution-row,
+.gu-plot-editor-resolution-row > * {
+  box-sizing: border-box !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
+.gu-plot-editor-tab-panel,
+.gu-plot-editor-setup-row,
+.gu-plot-editor-identity-row,
+.gu-plot-editor-resolution-row {
+  width: 100% !important;
+  overflow-x: hidden !important;
+}
+
+.gu-plot-editor-tab-button {
+  flex: 1 1 0 !important;
+}
+
+.gu-plot-editor-id-stack {
+  gap: 4px !important;
+}
+
+.gu-plot-editor-kind-control,
+.gu-plot-editor-kind-control > *,
+.gu-plot-editor-kind-control :is(.widget-dropdown, .widget-select, select:not([multiple])) {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+}
+
+.gu-plot-editor-kind-control select:not([multiple]) {
+  display: block !important;
+  height: var(--gu-control-height-md) !important;
+  min-height: var(--gu-control-height-md) !important;
+  max-height: var(--gu-control-height-md) !important;
+  line-height: calc(var(--gu-control-height-md) - 2px) !important;
+  overflow-y: clip !important;
+  scrollbar-width: none !important;
+}
+
+.gu-plot-editor-kind-control select:not([multiple])::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.gu-plot-editor-placement-section .gu-form-field[style*="display: none"],
+.gu-plot-editor-placement-section .gu-modal-section[style*="display: none"] {
+  display: none !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.gu-plot-editor-visibility-field {
+  padding-top: 0 !important;
+  min-height: 0 !important;
+  align-items: center !important;
+}
+
+.gu-plot-editor-visibility-field > * {
+  min-height: 0 !important;
+}
+
+.gu-plot-editor-error-body {
+  color: #991b1b;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.18);
+  border-radius: 8px;
+  padding: 10px 12px;
+  line-height: 1.45;
+}
+
+.gu-plot-editor-visibility-field {
+  display: inline-flex !important;
+  width: auto !important;
+  max-width: fit-content !important;
+  align-self: flex-start !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.gu-plot-editor-visibility-field > * {
+  width: auto !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  align-items: center !important;
+}
+
+.gu-plot-editor-visibility-field .gu-control-checkbox,
+.gu-plot-editor-visibility-field .gu-control-checkbox > *,
+.gu-plot-editor-visibility-field .gu-control-checkbox :is(label, .widget-label, .widget-checkbox, .widget-inline-hbox, .widget-hbox) {
+  min-height: 0 !important;
+  height: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.gu-plot-editor-visibility-field .gu-control-checkbox .widget-label,
+.gu-plot-editor-visibility-field .gu-control-checkbox label {
+  line-height: 1.2 !important;
+}
+
+.gu-plot-editor-visibility-field .gu-control-checkbox .widget-label {
+  display: none !important;
+}
+
+.gu-plot-editor-visibility-field .gu-control-checkbox .widget-label-basic {
+  display: inline-flex !important;
+  align-items: center !important;
+}

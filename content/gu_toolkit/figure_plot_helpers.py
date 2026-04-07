@@ -182,9 +182,4 @@ def remove_plot_from_figure(figure: Any, plot_id: str) -> None:
         return
     for view_id in tuple(plot.views):
         plot.remove_from_view(view_id)
-    sound_manager = getattr(figure, "_sound", None)
-    if sound_manager is not None:
-        on_plot_removed = getattr(sound_manager, "on_plot_removed", None)
-        if callable(on_plot_removed):
-            on_plot_removed(plot_id)
     figure._legend.on_plot_removed(plot_id)

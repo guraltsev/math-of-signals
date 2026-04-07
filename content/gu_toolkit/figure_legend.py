@@ -3,18 +3,21 @@
 Purpose
 -------
 This module owns the toolkit-managed legend sidebar: visible rows for plots in
-the active view, per-row visibility toggles, and the line-style dialog.
+the active view, per-row visibility toggles, the line-style dialog, and the
+toolbar/edit triggers that now launch the plot-composer modal.
 
 Architecture
 ------------
-The legend intentionally stays a *row manager*. It owns row widgets,
-active-view filtering, and browser-only context menu/dialog affordances
-without claiming responsibility for expression-authoring workflows.
+The legend intentionally stays a *row manager* rather than becoming a full plot
+editor. It owns row widgets, active-view filtering, and browser-only context
+menu/dialog affordances, while delegating new-plot/edit-plot form logic to
+``figure_plot_editor.py`` through a tiny callback bridge.
 
 Discoverability
 ---------------
-See :mod:`gu_toolkit.Figure` for the coordinator that wires the remaining
-sidebar subsystems together.
+See :mod:`gu_toolkit.figure_plot_editor` for the modal form and
+:mod:`gu_toolkit.Figure` for the coordinator that wires both subsystems
+together.
 """
 
 from __future__ import annotations
@@ -869,10 +872,7 @@ class LegendPanelManager:
             value=False,
             description="Auto-normalize sound",
             indent=False,
-            tooltip=(
-                "Apply bounded streaming auto-normalization with local DC "
-                "removal and attenuation-only gain control"
-            ),
+            tooltip="Automatically scale louder sound chunks into [-1, 1]",
             layout=widgets.Layout(width="auto", min_width="0"),
         )
         configure_control(

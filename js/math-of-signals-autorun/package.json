@@ -1,0 +1,32 @@
+{
+  "name": "math-of-signals-autorun",
+  "version": "0.1.0",
+  "description": "Autorun notebook setup cells tagged with autorun metadata in JupyterLite.",
+  "private": true,
+  "license": "BSD-3-Clause",
+  "keywords": [
+    "jupyter",
+    "jupyterlab-extension",
+    "jupyterlite"
+  ],
+  "files": [
+    "lib/**/*"
+  ],
+  "main": "lib/index.js",
+  "scripts": {
+    "build:lib": "node ./tools/build-lib.mjs",
+    "build:labextension": "jupyter labextension build .",
+    "build": "jlpm run build:lib && jlpm run build:labextension"
+  },
+  "dependencies": {
+    "@jupyterlab/application": "~4.5.3",
+    "@jupyterlab/notebook": "~4.5.3"
+  },
+  "devDependencies": {
+    "@jupyterlab/builder": "~4.5.3"
+  },
+  "jupyterlab": {
+    "extension": true,
+    "outputDir": "../../extensions/math-of-signals-autorun"
+  }
+}

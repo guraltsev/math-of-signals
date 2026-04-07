@@ -119,3 +119,5 @@ dmypy.json
 *.doit.db
 _output
 /.vscode
+
+extensions/

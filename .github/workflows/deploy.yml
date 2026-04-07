@@ -53,6 +53,8 @@ jobs:
           pwd
           ls -R ../extensions || true
           ls -R extensions || true
+          echo "=== DIST CONTENTS ==="
+          ls -R dist/extensions || true
 
       - name: Build the JupyterLite site
         run: |

@@ -5,7 +5,6 @@
       "@jupyterlab/drawio-extension",
       "jupyterlab-kernel-spy",
       "jupyterlab-tour",
-      "@jupyterlab/filebrowser-extension:browser",
       "@jupyterlab/launcher-extension:plugin"
     ],
     "litePluginSettings": {

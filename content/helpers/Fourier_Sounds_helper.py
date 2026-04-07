@@ -1,4 +1,6 @@
 from gu_toolkit import *
+import warnings
+from scipy.integrate import IntegrationWarning
 
 __all__ = ["create_mystery_function", "Sq", "Tr", "fourier_coefficients"]
 
@@ -12,8 +14,10 @@ def Tr(x):
 
 def fourier_coefficients(expr, Nmax, interval=(0, 1)):
     left, right = interval
-    cos_coeffs = [2 * NIntegrate(expr * cos(2*pi*n*x), (x, left, right)) for n in range(0, Nmax + 1)]
-    sin_coeffs = [2 * NIntegrate(expr * sin(2*pi*n*x), (x, left, right)) for n in range(0, Nmax + 1)]
+    with warnings.catch_warnings():
+    warnings.simplefilter("ignore", category=IntegrationWarning)
+        cos_coeffs = [2 * NIntegrate(expr * cos(2*pi*n*x), (x, left, right)) for n in range(0, Nmax + 1)]
+        sin_coeffs = [2 * NIntegrate(expr * sin(2*pi*n*x), (x, left, right)) for n in range(0, Nmax + 1)]
     return cos_coeffs, sin_coeffs
     
 def create_mystery_function(N, debug=False, grid_size=20000, randomseed=42):

@@ -25,14 +25,10 @@
         }
       }
     },
-    "enableMemoryStorage": true,
     "contentsStorageDrivers": [
       "memoryStorageDriver"
     ],
     "settingsStorageDrivers": [
-      "memoryStorageDriver"
-    ],
-    "workspacesStorageDrivers": [
       "memoryStorageDriver"
     ]
   }

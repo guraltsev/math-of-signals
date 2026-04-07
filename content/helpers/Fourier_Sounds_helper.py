@@ -2,7 +2,27 @@ from gu_toolkit import *
 import warnings
 from scipy.integrate import IntegrationWarning
 
-__all__ = ["create_mystery_function", "Sq", "Tr", "fourier_coefficients"]
+from helpers.model_fit_metrics import (
+    AvgDistanceCard,
+    L1AvgNormCard,
+    MaxDistanceCard,
+    SupNormCard,
+    add_model_fit_distance_info,
+    compute_model_fit_distances,
+)
+
+__all__ = [
+    "create_mystery_function",
+    "Sq",
+    "Tr",
+    "fourier_coefficients",
+    "SupNormCard",
+    "MaxDistanceCard",
+    "L1AvgNormCard",
+    "AvgDistanceCard",
+    "add_model_fit_distance_info",
+    "compute_model_fit_distances",
+]
 
 @NamedFunction
 def Sq(x):

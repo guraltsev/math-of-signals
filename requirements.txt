@@ -1,0 +1,8 @@
+jupyterlite-core==0.7.4
+jupyterlite-pyodide-kernel==0.7.1
+jupyterlab>=4.5.0,<4.6
+notebook>=7.5.0,<7.6
+ipywidgets==8.1.8
+plotly==6.6.0
+anywidget==0.9.21
+pyodide-build==0.29.3

@@ -19,21 +19,21 @@ The UArk Fight song
 - Encoding: 44.1 kHz stereo, 192 kb/s
 - Duration: 00:01:24.27
 - File size: 2,023,268 bytes
-[Uark-fight.mp3](https://guraltsev.github.io/math-of-signals/lab/index.html?path=Uark-fight.mp3&mode=single-document)
+[Uark-fight.mp3](content/Uark-fight.mp3)
 
 The UArk Fight song (very compressed)
 - Format: MP3
 - Encoding: 44.1 kHz stereo, 32 kb/s
 - Duration: 00:01:24.27
 - File size: 337,430 bytes
-[Uark-fight-32.mp3](https://guraltsev.github.io/math-of-signals/lab/index.html?path=Uark-fight-32.mp3&mode=single-document)
+[Uark-fight-32.mp3](content/Uark-fight-32.mp3)
 
 The UArk Fight song (downsampled)
 - Format: WAV
 - Encoding: 8 kHz mono PCM, 128 kb/s
 - Duration: 00:01:24.27
 - File size: 1,347,950 bytes
-[uark-fight-low-sample.wav](https://guraltsev.github.io/math-of-signals/lab/index.html?path=uark-fight-low-sample.wav&mode=single-document)
+[uark-fight-low-sample.wav](content/uark-fight-low-sample.wav)
 
 # Visual compression
 

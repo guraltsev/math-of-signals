@@ -1,7 +1,7 @@
 {
   "jupyter-lite-schema-version": 0,
   "jupyter-config-data": {
-	  "defaultKernelName": "python",
+    "defaultKernelName": "python",
     "disabledExtensions": [
       "@jupyterlab/drawio-extension",
       "jupyterlab-kernel-spy",
@@ -35,6 +35,11 @@
     "enableMemoryStorage": true,
     "workspacesStorageDrivers": [
       "memoryStorageDriver"
-    ]
+    ],
+    "settingsOverrides": {
+      "@jupyterlab/notebook-extension:tracker": {
+        "autoStartDefaultKernel": true
+      }
+    }
   }
 }

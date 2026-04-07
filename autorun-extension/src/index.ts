@@ -72,17 +72,9 @@ const plugin: JupyterFrontEndPlugin<void> = {
     const ensureKernelReady = async (panel: NotebookPanel): Promise<boolean> => {
       const { sessionContext } = panel;
 
-      if (!sessionContext.isReady) {
-        console.info(`[${PLUGIN_ID}] initializing kernel for ${getNotebookLabel(panel)}`);
-        const needsSelection = await sessionContext.initialize();
-        if (needsSelection) {
-          console.info(
-            `[${PLUGIN_ID}] kernel selection required for ${getNotebookLabel(panel)}`
-          );
-          await sessionDialogs.selectKernel(sessionContext);
-        }
-      }
-
+      console.info(
+        `[${PLUGIN_ID}] waiting for existing session startup for ${getNotebookLabel(panel)}`
+      );
       await sessionContext.ready;
 
       const hasKernel = !!sessionContext.session?.kernel;

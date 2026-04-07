@@ -336,10 +336,9 @@ th {
     <header class="hero">
       <div class="hero__inner">
         <p class="eyebrow">Math of Signals</p>
-        <h1>Interactive Fourier notebooks in the browser</h1>
+        <h1>Interactive Fourier notebooks</h1>
         <p class="lead">
-          Open the JupyterLite notebooks directly in single-document mode, then compare the bundled
-          audio files used in the signal examples.
+          Open activities about signals and math.
         </p>
         <div class="hero__actions">
           <a class="button button--primary" href="./lab/index.html">Open JupyterLite</a>
@@ -354,10 +353,7 @@ th {
         <div class="section__heading">
           <p class="section__eyebrow">Notebook links</p>
           <h2>Launch a notebook directly</h2>
-          <p>
-            Each link below opens the notebook with the JupyterLite single-document URL pattern
-            <code>lab/index.html?path=XXXX.ipynb&amp;mode=single-document</code>.
-          </p>
+  
         </div>
 
         <div class="card-grid">
@@ -371,22 +367,6 @@ th {
               <p class="filename">How_functions_sound.ipynb</p>
             </div>
             <a class="card__link" href="./lab/index.html?path=How_functions_sound.ipynb&amp;mode=single-document">
-              Open notebook
-            </a>
-          </article>
-
-          <article class="card">
-            <div class="card__body">
-              <h3>How to find those trig functions</h3>
-              <p>
-                Explore products of sine waves and see how different frequencies interact on the unit interval.
-              </p>
-              <p class="filename">How_to_find_those_trig_functions.ipynb</p>
-            </div>
-            <a
-              class="card__link"
-              href="./lab/index.html?path=How_to_find_those_trig_functions.ipynb&amp;mode=single-document"
-            >
               Open notebook
             </a>
           </article>
@@ -422,9 +402,25 @@ th {
 
           <article class="card">
             <div class="card__body">
+              <h3>How to find those trig functions</h3>
+              <p>
+                Explore products of sine waves and see how different frequencies interact on the unit interval.
+              </p>
+              <p class="filename">How_to_find_those_trig_functions.ipynb</p>
+            </div>
+            <a
+              class="card__link"
+              href="./lab/index.html?path=How_to_find_those_trig_functions.ipynb&amp;mode=single-document"
+            >
+              Open notebook
+            </a>
+          </article>
+
+          <article class="card">
+            <div class="card__body">
               <h3>What we discovered</h3>
               <p>
-                Review the orthogonality relations and the coefficient formulas that make Fourier expansions work.
+                Review the relations that make Fourier expansions work.
               </p>
               <p class="filename">The_Fourier_coefficients.ipynb</p>
             </div>
@@ -441,10 +437,9 @@ th {
       <section id="audio-files" class="section">
         <div class="section__heading">
           <p class="section__eyebrow">Audio files</p>
-          <h2>Bundled reference audio</h2>
+          <h2>Compressed Audio files</h2>
           <p>
-            These files are available directly from the static site. The original and low-bitrate files are MP3s;
-            the low-sample version is a WAV file.
+            The original and low-bitrate files compressed files, and a low-sample version.
           </p>
         </div>
 
@@ -546,20 +541,6 @@ th {
           </div>
         </div>
 
-        <div class="callout callout--subtle">
-          <h3>Low-sample WAV conversion note</h3>
-          <p>
-            The repo includes this ffmpeg command for making the low-sample WAV:
-          </p>
-          <pre><code>ffmpeg -i Uark-fight.mp3 -ac 1 -ar 8000 -af "aresample=osf=u8:dither_method=none" uark-fight-low-sample.wav</code></pre>
-          <p>
-            Conversion log note: <code>size=1316kB time=00:01:24.24 bitrate=128.0kbits/s speed=721x</code>.
-          </p>
-          <p class="note">
-            The command requests unsigned 8-bit output samples with <code>osf=u8</code>. The checked-in WAV file
-            currently reports as 8 kHz mono PCM at 128 kb/s when inspected, which corresponds to 16-bit PCM metadata.
-          </p>
-        </div>
       </section>
     </main>
   </body>

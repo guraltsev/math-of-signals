@@ -6,7 +6,7 @@ from gu_toolkit.numpify import numpify, numpify_cached
 __all__ = ["create_mystery_function"]
 
 
-def create_mystery_function(N, debug=False):
+def create_mystery_function(N, debug=False, randomseed=42):
     """
     Create a mystery function of the form
     $$
@@ -15,6 +15,7 @@ def create_mystery_function(N, debug=False):
 
     The numbers $α_n$ are chosen randomly **between -1 and 1** with **step 0.1**.
     """
+    np.random.seed(randomseed)  # any fixed integer works
     x = sp.Symbol("x")
 
     @NamedFunction

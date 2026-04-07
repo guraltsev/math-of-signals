@@ -1,6 +1,6 @@
 from gu_toolkit import *
 
-__all__ = ["create_mystery_function", "Sq", "Tr"]
+__all__ = ["create_mystery_function", "Sq", "Tr", "fourier_coefficients"]
 
 @NamedFunction
 def Sq(x):
@@ -10,8 +10,13 @@ def Sq(x):
 def Tr(x):
     return asin(sin(2 * pi * x)) / (pi / 2)
 
-
-def create_mystery_function(N, debug=False, grid_size=20000):
+def fourier_coefficients(expr, Nmax, interval=(0, 1)):
+    left, right = interval
+    cos_coeffs = [2 * NIntegrate(expr * cos(2*pi*n*x), (x, left, right)) for n in range(0, Nmax + 1)]
+    sin_coeffs = [2 * NIntegrate(expr * sin(2*pi*n*x), (x, left, right)) for n in range(0, Nmax + 1)]
+    return cos_coeffs, sin_coeffs
+    
+def create_mystery_function(N, debug=False, grid_size=20000, randomseed=42):
     r"""
     Create a mystery function of the form
     $$
@@ -24,6 +29,8 @@ def create_mystery_function(N, debug=False, grid_size=20000):
     \|F\|_{L^\infty}=1.
     $$
     """
+    np.random.seed(randomseed)  # any fixed integer works
+
     x = symbols("x")
 
     @NamedFunction
